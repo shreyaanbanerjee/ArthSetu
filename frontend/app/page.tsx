@@ -90,8 +90,10 @@ function now() {
   return new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
 }
 
-// Speak text via browser TTS
+// Speak text via browser TTS (respects global mute)
+let _isMuted = false;
 function speak(text: string, lang: string) {
+  if (_isMuted) return;
   if (!("speechSynthesis" in window)) return;
   window.speechSynthesis.cancel();
   const utt = new SpeechSynthesisUtterance(text);
@@ -105,6 +107,9 @@ function speak(text: string, lang: string) {
   if (voice) utt.voice = voice;
   utt.rate = 0.9;
   window.speechSynthesis.speak(utt);
+}
+function stopSpeaking() {
+  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
 }
 
 // ─── Animated Waveform Canvas ─────────────────────────────────────────────────
@@ -224,6 +229,7 @@ export default function VoiceHub() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [currentResponse, setCurrentResponse] = useState<HistoryEntry | null>(null);
   const [showResponse, setShowResponse] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
 
   // Smart actions state
   const [schemeResults, setSchemeResults] = useState<SchemeItem[]>([]);
@@ -599,6 +605,31 @@ export default function VoiceHub() {
           {!isOnline && <span className="offline-badge">OFFLINE</span>}
         </div>
         <div className="status-right">
+          <button
+            className="mute-btn"
+            onClick={() => {
+              const next = !isMuted;
+              setIsMuted(next);
+              _isMuted = next;
+              if (next) stopSpeaking();
+            }}
+            aria-label={isMuted ? "Unmute" : "Mute"}
+            title={isMuted ? "Unmute" : "Mute"}
+          >
+            {isMuted ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="currentColor" />
+                <line x1="23" y1="9" x2="17" y2="15" strokeLinecap="round" />
+                <line x1="17" y1="9" x2="23" y2="15" strokeLinecap="round" />
+              </svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="currentColor" />
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" strokeLinecap="round" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" strokeLinecap="round" />
+              </svg>
+            )}
+          </button>
           <span className="time-display">{timeStr}</span>
         </div>
       </div>
