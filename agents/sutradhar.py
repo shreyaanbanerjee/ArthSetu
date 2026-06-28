@@ -39,7 +39,9 @@ For final answers:
 - Explain why in simple words.
 - Give 2-4 concrete next steps.
 - If useful, mention score/scheme/document findings.
+- Do not add generic scam warnings when no scam is detected and the user did not ask about fraud/security.
 - Keep it WhatsApp-friendly: short paragraphs, no jargon, no long tables.
+- If language is mr, answer in natural Marathi. If hi, answer in Hindi. If en, answer in English.
 Return only valid JSON.
 """
 
@@ -157,7 +159,7 @@ def _synthesize_with_llm(state: dict[str, Any]) -> str | None:
                         f"Emotion: {state.get('emotional_register', 'calm')}\n"
                         f"User message: {state.get('raw_input', '')}\n"
                         f"Agent outputs: {json.dumps(state.get('agent_outputs', {}), ensure_ascii=False)}\n"
-                        "Return JSON with key synthesis only. Make the synthesis friendly and practical, around 120-220 words unless the user only needs a one-line answer."
+                        "Return JSON with key synthesis only. Make the synthesis friendly and practical. Use the requested language exactly."
                     ),
                 },
             ],
@@ -173,31 +175,27 @@ def _synthesize_with_llm(state: dict[str, Any]) -> str | None:
 def _synthesize_locally(state: dict[str, Any]) -> str:
     """Create a clear deterministic response from agent outputs."""
     outputs = state.get("agent_outputs", {})
-    parts: list[str] = ["I checked this carefully for you."]
+    lang = state.get("language", "en")
+    parts: list[str] = [_t(lang, "checked")]
     prahari = outputs.get("prahari")
     if prahari:
         if prahari.get("scam_detected"):
             flags = prahari.get("red_flags", [])[:4]
             parts.append(
-                f"Verdict: this looks risky, so do not click the link or share any OTP, PIN, CVV, Aadhaar, or bank details. "
-                f"My confidence is {prahari.get('confidence')}. "
-                f"Red flags I noticed: {', '.join(flags) if flags else 'pressure, sensitive data request, or suspicious payment pattern'}."
+                _t(lang, "scam_verdict").format(confidence=prahari.get("confidence"), flags=", ".join(flags) if flags else _t(lang, "generic_flags"))
             )
             parts.append(
-                "What to do now: 1. Stop replying to the sender. 2. Block/report the number in WhatsApp or SMS. "
-                "3. If money was deducted, contact your bank immediately and save screenshots. "
-                "4. Share this warning with family before they act on the same message."
+                _t(lang, "scam_steps")
             )
-        else:
+        elif state.get("intent") == "scam_check" or prahari.get("confidence", 0) >= 0.35 or prahari.get("red_flags"):
             parts.append(
-                "I did not find a strong scam signal in this message. Still, stay careful: no genuine bank or government service "
-                "will ask for OTP, UPI PIN, CVV, or full Aadhaar over chat."
+                _t(lang, "clear_scam")
             )
     bodhak = outputs.get("bodhak")
     if bodhak:
         parts.append(str(bodhak.get("plain_summary") or "I decoded the document and listed the key points."))
         if bodhak.get("one_action_now"):
-            parts.append(f"Next step: {bodhak['one_action_now']}")
+            parts.append(f"{_t(lang, 'next_step')}: {bodhak['one_action_now']}")
     shilpi = outputs.get("shilpi")
     if shilpi:
         monthly = shilpi.get("monthly_plan")
@@ -208,11 +206,36 @@ def _synthesize_locally(state: dict[str, Any]) -> str:
         schemes = shilpi.get("schemes_to_apply") or []
         if schemes:
             names = [item.get("name", str(item)) if isinstance(item, dict) else str(item) for item in schemes[:3]]
-            parts.append(f"Useful schemes to check: {', '.join(names)}.")
+            parts.append(f"{_t(lang, 'schemes')}: {', '.join(names)}.")
     vivek = outputs.get("vivek")
     if vivek:
         score = vivek.get("arth_score", {}).get("score")
         action = vivek.get("arth_score", {}).get("next_best_action")
         if score is not None:
-            parts.append(f"Your Arth Score is {score}/100. {action}")
+            parts.append(f"{_t(lang, 'score')} {score}/100. {action}")
     return "\n\n".join(part for part in parts if part).strip() or "I am ready. Send a message, document, or question about money."
+
+
+def _t(language: str, key: str) -> str:
+    """Tiny fallback phrasebook for non-LLM responses."""
+    mr = {
+        "checked": "मी हे काळजीपूर्वक तपासले.",
+        "scam_verdict": "निर्णय: हे धोकादायक वाटते.\n\nकाय करू नका: लिंक उघडू नका आणि OTP, UPI PIN, CVV, आधार किंवा बँक माहिती शेअर करू नका.\n\nविश्वास: {confidence}\nलाल चिन्हे: {flags}",
+        "generic_flags": "घाई लावणे किंवा संवेदनशील माहिती मागणे",
+        "scam_steps": "आता काय करा:\n1. त्या व्यक्तीला उत्तर देऊ नका.\n2. नंबर ब्लॉक/रिपोर्ट करा.\n3. पैसे गेले असल्यास लगेच बँकेशी संपर्क करा.\n4. स्क्रीनशॉट जतन करा.",
+        "clear_scam": "या संदेशात मोठा फसवणुकीचा संकेत दिसत नाही.",
+        "next_step": "पुढचे पाऊल",
+        "schemes": "तपासण्यासारख्या योजना",
+        "score": "तुमचा Arth Score आहे",
+    }
+    en = {
+        "checked": "I checked this carefully.",
+        "scam_verdict": "Verdict: this looks risky.\n\nDo not click the link or share OTP, UPI PIN, CVV, Aadhaar, or bank details.\n\nConfidence: {confidence}\nRed flags: {flags}",
+        "generic_flags": "pressure or sensitive data request",
+        "scam_steps": "What to do now:\n1. Stop replying.\n2. Block/report the number.\n3. If money was deducted, contact your bank immediately.\n4. Save screenshots.",
+        "clear_scam": "I did not find a strong scam signal in this message.",
+        "next_step": "Next step",
+        "schemes": "Useful schemes to check",
+        "score": "Your Arth Score is",
+    }
+    return (mr if language == "mr" else en).get(key, en[key])

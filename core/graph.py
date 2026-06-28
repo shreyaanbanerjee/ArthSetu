@@ -64,6 +64,8 @@ def route_after_sutradhar(state: GraphState) -> list[str]:
     """Return selected agent nodes based on detected intent; Prahari always fires."""
     intent = state.get("intent", "general")
     agents = ["prahari"]
+    if state.get("has_media"):
+        agents.append("bodhak")
     if intent in ("document", "decode", "explain", "saaf_bolna"):
         agents.append("bodhak")
     if intent in ("plan", "scheme", "budget", "fasal", "income_flex"):
@@ -74,4 +76,4 @@ def route_after_sutradhar(state: GraphState) -> list[str]:
         pass
     if intent == "general":
         agents.extend(["bodhak", "shilpi", "vivek"])
-    return agents
+    return list(dict.fromkeys(agents))

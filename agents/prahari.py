@@ -25,9 +25,9 @@ def prahari_node(state: dict[str, Any]) -> dict[str, Any]:
     scam_detected = final_confidence >= SCAM_CONFIDENCE_THRESHOLD
 
     terms = extract_loan_terms(raw)
-    principal = triage.get("loan_amount_inr") or terms.get("loan_amount_inr")
-    repayment = triage.get("repayment_stated") or terms.get("repayment_stated")
-    months = triage.get("period_months") or terms.get("period_months")
+    principal = _number_or_none(triage.get("loan_amount_inr")) or terms.get("loan_amount_inr")
+    repayment = _number_or_none(triage.get("repayment_stated")) or terms.get("repayment_stated")
+    months = _int_or_none(triage.get("period_months")) or terms.get("period_months")
     apr_info = compute_true_apr(float(principal), float(repayment), int(months)) if principal and repayment and months else None
 
     sachet_reference = None
@@ -70,3 +70,19 @@ def _llm_triage(raw: str) -> dict[str, Any] | None:
         return json.loads(response.choices[0].message.content or "{}")
     except Exception:
         return None
+
+
+def _number_or_none(value: Any) -> float | None:
+    """Return a numeric value only when the LLM field is actually numeric."""
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return float(str(value).replace(",", "").strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def _int_or_none(value: Any) -> int | None:
+    """Return an integer only when the LLM field is actually numeric."""
+    number = _number_or_none(value)
+    return int(number) if number is not None else None

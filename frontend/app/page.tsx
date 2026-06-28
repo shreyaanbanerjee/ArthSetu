@@ -52,6 +52,7 @@ interface UserProfile {
 // ─── Constants ────────────────────────────────────────────────────────────────
 const API = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 const DEFAULT_USER_ID = "voice-user";
+const API_FALLBACKS = Array.from(new Set([API, "http://127.0.0.1:8000", "http://localhost:8000"]));
 
 const LANGUAGES = [
   { code: "hi", label: "हिंदी" },
@@ -99,6 +100,9 @@ function speak(text: string, lang: string) {
     ta: "ta-IN", te: "te-IN", bn: "bn-IN", gu: "gu-IN", pa: "pa-IN",
   };
   utt.lang = langMap[lang] || "hi-IN";
+  const voices = window.speechSynthesis.getVoices();
+  const voice = voices.find(v => v.lang.toLowerCase().startsWith((langMap[lang] || "hi-IN").toLowerCase().split("-")[0]));
+  if (voice) utt.voice = voice;
   utt.rate = 0.9;
   window.speechSynthesis.speak(utt);
 }
@@ -280,12 +284,21 @@ export default function VoiceHub() {
     setOrbState("thinking");
     setShowResponse(false);
     try {
-      const res = await fetch(`${API}/api/v1/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: profile.user_id, message, profile_updates: profileUpdates || profile }),
-      });
-      if (!res.ok) throw new Error("API error");
+      let res: Response | null = null;
+      const body = JSON.stringify({ user_id: profile.user_id, message, profile_updates: profileUpdates || profile });
+      for (const baseUrl of API_FALLBACKS) {
+        try {
+          res = await fetch(`${baseUrl}/api/v1/chat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body,
+          });
+          if (res.ok) break;
+        } catch {
+          res = null;
+        }
+      }
+      if (!res || !res.ok) throw new Error("API error");
       const data = await res.json();
 
       const scoreRaw = data.arth_score_update || data.agent_outputs?.vivek?.arth_score || null;
@@ -376,7 +389,10 @@ export default function VoiceHub() {
       return;
     }
     const r = new SR();
-    r.lang = language === "hi" ? "hi-IN" : language === "en" ? "en-IN" : `${language}-IN`;
+    const speechLang: Record<string, string> = {
+      hi: "hi-IN", en: "en-IN", mr: "mr-IN", kn: "kn-IN", ta: "ta-IN", te: "te-IN", bn: "bn-IN", gu: "gu-IN", pa: "pa-IN",
+    };
+    r.lang = speechLang[language] || "hi-IN";
     r.interimResults = true;
     r.maxAlternatives = 1;
     r.onstart = () => { setOrbState("listening"); setTranscript(""); };
@@ -388,7 +404,7 @@ export default function VoiceHub() {
       if (e.results[e.results.length - 1].isFinal && t.trim()) {
         r.stop();
         setOrbState("thinking");
-        callAPI(t.trim());
+        callAPI(t.trim(), { ...profile, language });
       }
     };
     r.start();
@@ -446,7 +462,7 @@ export default function VoiceHub() {
     if (scoreLoaded) return;
     setScoreLoading(true);
     try {
-      const res = await fetch(`${API}/api/v1/profile/${profile.user_id}`);
+      const res = await fetch(`${API_FALLBACKS[0]}/api/v1/profile/${profile.user_id}`);
       if (res.ok) {
         const profile = await res.json();
         // Trigger a score query to actually compute the Arth Score
@@ -497,6 +513,21 @@ export default function VoiceHub() {
 
   function dismissNudge(id: string) {
     setNudgeCards(prev => prev.filter(n => n.id !== id));
+  }
+
+  function logout() {
+    localStorage.removeItem("arthsetu_profile");
+    setHistory([]);
+    setNudgeCards([]);
+    setSchemeResults([]);
+    setSchemesLoaded(false);
+    setFraudCheckResult(null);
+    setScoreData(null);
+    setScoreLoaded(false);
+    setCurrentResponse(null);
+    setShowResponse(false);
+    setActivePanel("none");
+    setProfileReady(false);
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────────
@@ -986,6 +1017,13 @@ export default function VoiceHub() {
               <div>
                 <div className="support-label">Clear Session</div>
                 <div className="support-desc">Reset conversation and cached results</div>
+              </div>
+            </div>
+            <div className="support-item" onClick={logout}>
+              <span className="support-icon">🚪</span>
+              <div>
+                <div className="support-label">Log Out / Switch User</div>
+                <div className="support-desc">Return to profile setup and sign in again</div>
               </div>
             </div>
           </div>

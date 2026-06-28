@@ -36,21 +36,27 @@ async def receive_twilio_whatsapp(
     MediaContentType0: str | None = Form(None),  # noqa: N803
 ) -> Response:
     """Receive a WhatsApp message from Twilio and reply with TwiML."""
-    raw_text = Body.strip()
+    caption_text = Body.strip()
+    raw_text = caption_text
     is_voice = False
+    has_media = bool(NumMedia and MediaUrl0)
     if NumMedia and MediaUrl0:
-        media_bytes = await _download_twilio_media(MediaUrl0)
-        raw_text, is_voice = _extract_media_text(media_bytes, MediaContentType0)
+        try:
+            media_bytes = await _download_twilio_media(MediaUrl0)
+            media_text, is_voice = _extract_media_text(media_bytes, MediaContentType0)
+        except Exception as exc:
+            media_text = f"Document received, but text extraction failed: {exc}"
+        raw_text = "\n\n".join(part for part in [caption_text, media_text] if part.strip())
     if not raw_text:
-        raw_text = "Please explain this financial message."
+        raw_text = "Please decode this financial document."
 
-    result = run_channel_message(sender_id=From, raw_text=raw_text, is_voice=is_voice)
+    result = run_channel_message(sender_id=From, raw_text=raw_text, is_voice=is_voice, has_media=has_media)
     response = MessagingResponse()
     response.message((result.get("final_response") or "I could not prepare a reply. Please try again.")[:MAX_WHATSAPP_REPLY_CHARS])
     return Response(content=str(response), media_type="application/xml")
 
 
-def run_channel_message(sender_id: str, raw_text: str, is_voice: bool = False) -> dict[str, Any]:
+def run_channel_message(sender_id: str, raw_text: str, is_voice: bool = False, has_media: bool = False) -> dict[str, Any]:
     """Run a user message through the ArthSetu graph."""
     profile = get_user_profile(sender_id)
     state = {
@@ -71,6 +77,7 @@ def run_channel_message(sender_id: str, raw_text: str, is_voice: bool = False) -
         "user_profile": profile,
         "ocr_extracted_text": raw_text,
         "is_voice": is_voice,
+        "has_media": has_media,
     }
     result = graph.invoke(state)
     update_session(sender_id, result)

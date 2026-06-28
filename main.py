@@ -79,7 +79,14 @@ async def chat(request: ChatRequest) -> dict[str, Any]:
         "user_profile": profile,
         "ocr_extracted_text": request.message,
     }
-    result = graph.invoke(state)
+    try:
+        result = graph.invoke(state)
+    except Exception as exc:
+        result = {
+            **state,
+            "error": str(exc),
+            "final_response": "I could not process that fully. Please try again with a shorter message or send the document once more.",
+        }
     update_session(request.user_id, result)
     return result
 
