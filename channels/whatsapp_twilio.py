@@ -73,6 +73,9 @@ def run_channel_message(sender_id: str, raw_text: str, is_voice: bool = False) -
         "is_voice": is_voice,
     }
     result = graph.invoke(state)
+    if result.get("profile_updates"):
+        from core.memory import upsert_user_profile
+        upsert_user_profile(sender_id, result["profile_updates"])
     update_session(sender_id, result)
     return result
 

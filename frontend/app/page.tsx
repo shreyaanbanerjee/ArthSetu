@@ -413,11 +413,11 @@ export default function VoiceHub() {
     if (Math.max(adx, ady) < THRESHOLD) return;
 
     if (ady > adx) {
-      if (dy < 0) openPanel("score");   // swipe up → Account/Score
-      else        openPanel("support"); // swipe down → Support
+      if (dy > 0) openPanel("score");   // swipe down → Account/Score
+      else        openPanel("support"); // swipe up → Support
     } else {
-      if (dx < 0) openPanel("history"); // swipe left → History
-      else        openPanel("actions"); // swipe right → Smart Actions
+      if (dx > 0) openPanel("history"); // swipe right → History
+      else        openPanel("actions"); // swipe left → Smart Actions
     }
   }
 
@@ -656,17 +656,16 @@ export default function VoiceHub() {
               </span>
             </button>
           </div>
-
           <div className="orb-label">
             <div className="orb-status">
-              {orbState === "idle" && "Tap to speak"}
-              {orbState === "listening" && "Listening…"}
-              {orbState === "thinking" && "Thinking…"}
+              {orbState === "idle" && <span>Tap to speak</span>}
+              {orbState === "listening" && <span>Listening…</span>}
+              {orbState === "thinking" && <span>Thinking…</span>}
             </div>
             <div className="orb-sub">
-              {orbState === "idle" && "ArthSetu · Your financial guardian"}
-              {orbState === "listening" && "Speak your question in " + (LANGUAGES.find(l => l.code === language)?.label || "Hindi")}
-              {orbState === "thinking" && "Running agents · Prahari · Shilpi · Vivek"}
+              {orbState === "idle" && <span>ArthSetu · Your financial guardian</span>}
+              {orbState === "listening" && <span>Speak your question in {LANGUAGES.find(l => l.code === language)?.label || "Hindi"}</span>}
+              {orbState === "thinking" && <span>Running agents · Prahari · Shilpi · Vivek</span>}
             </div>
           </div>
         </div>
@@ -683,10 +682,10 @@ export default function VoiceHub() {
           {nudgeCards.map((n) => (
             <div key={n.id} className="nudge-card" onClick={() => playNudge(n.text)}>
               <div className={`nudge-icon ${n.type}`}>
-                {n.type === "scam" && "⚠️"}
-                {n.type === "score" && "📊"}
-                {n.type === "scheme" && "🏛️"}
-                {n.type === "info" && "💬"}
+                {n.type === "scam" && <span>⚠️</span>}
+                {n.type === "score" && <span>📊</span>}
+                {n.type === "scheme" && <span>🏛️</span>}
+                {n.type === "info" && <span>💬</span>}
               </div>
               <div className="nudge-body">
                 <div className="nudge-label">{n.label}</div>

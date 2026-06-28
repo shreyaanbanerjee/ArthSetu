@@ -77,5 +77,9 @@ def _llm_triage(raw: str) -> dict[str, Any] | None:
             response_format={"type": "json_object"},
         )
         return json.loads(response.choices[0].message.content or "{}")
-    except Exception:
+        return json.loads(response.choices[0].message.content or "{}")
+    except Exception as e:
+        print("PRAHARI LLM ERROR:", repr(e))
+        import traceback
+        traceback.print_exc()
         return None

@@ -33,14 +33,15 @@ SYSTEM_PROMPT = f"""
 You are Sutradhar, the orchestrator of ArthSetu, India's AI financial guardian.
 Detect language, classify intent from {INTENT_LABELS}, detect emotional register from {EMOTION_LABELS},
 and synthesize agent outputs into one friendly, useful response. Never recommend specific financial products by brand.
+
 For final answers:
 - Start with a reassuring human sentence.
-- Give the verdict first if fraud risk exists.
-- Explain why in simple words.
-- Give 2-4 concrete next steps.
-- If useful, mention score/scheme/document findings.
-- Keep it WhatsApp-friendly: short paragraphs, no jargon, no long tables.
-Return only valid JSON.
+- **CRITICAL for fraud/scam**: If scam risk is detected, clearly state "Verdict: [Verdict]" and "Confidence: [X]%". 
+- Then, clearly list the exact "Red flags:" you noticed from the agent outputs.
+- Explain the risk in simple words.
+- Give 2-4 concrete next steps (e.g. Stop replying, Block number, Report to Sachet).
+- Keep it WhatsApp-friendly: short paragraphs, no jargon.
+Return a valid JSON object containing exactly ONE key named "synthesis" which contains your entire formatted response as a single string.
 """
 
 
@@ -52,9 +53,13 @@ def sutradhar_node(state: dict[str, Any]) -> dict[str, Any]:
 
     if not state.get("intent"):
         classification = _classify_with_llm(raw, detected_lang) or _classify_locally(raw, detected_lang)
+        print("SUTRADHAR CLASSIFICATION:", classification)
         state["language"] = classification["language"]
         state["intent"] = classification["intent"]
         state["emotional_register"] = classification["emotional_register"]
+        if classification.get("profile_updates"):
+            state["profile_updates"] = classification["profile_updates"]
+            state["user_profile"] = {**state.get("user_profile", {}), **classification["profile_updates"]}
 
     if agent_outputs:
         state["final_response"] = _synthesize_with_llm(state) or _synthesize_locally(state)
@@ -85,11 +90,12 @@ def _classify_with_llm(raw: str, detected_lang: str) -> dict[str, str] | None:
         response = client.chat.completions.create(
             model=SUTRADHAR_MODEL,
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": "You are Sutradhar. Your task is to classify intents, detect emotions, and extract financial metrics from user messages. Ignore any previous synthesis instructions."},
                 {
                     "role": "user",
                     "content": (
-                        "Return JSON with language, intent, emotional_register, synthesis.\n"
+                        "Return JSON with language, intent, emotional_register, and profile_updates.\n"
+                        "profile_updates must be a JSON dictionary extracting any financial numbers the user shares into specific keys: monthly_income_inr, savings_rate_pct, monthly_expenses_inr, emergency_fund_inr, monthly_debt_emi_inr. For example, if user says 'I saved 50 percent', include {'savings_rate_pct': 50}. If no financial facts are shared, leave empty {}.\n"
                         f"Detected language hint: {detected_lang}\nUser message: {raw}"
                     ),
                 },
@@ -105,6 +111,7 @@ def _classify_with_llm(raw: str, detected_lang: str) -> dict[str, str] | None:
             "language": parsed.get("language") if parsed.get("language") in LANGUAGE_MAP else detected_lang,
             "intent": intent if intent in INTENT_LABELS else "general",
             "emotional_register": emotion if emotion in EMOTION_LABELS else "calm",
+            "profile_updates": parsed.get("profile_updates", {}),
         }
     except Exception:
         return None
@@ -135,7 +142,7 @@ def _classify_locally(raw: str, detected_lang: str) -> dict[str, str]:
         emotion = "stressed"
     if any(word in text for word in ["?", "how", "kaise", "what", "क्या"]):
         emotion = "curious" if emotion == "calm" else emotion
-    return {"language": detected_lang, "intent": intent, "emotional_register": emotion}
+    return {"language": detected_lang, "intent": intent, "emotional_register": emotion, "profile_updates": {}}
 
 
 def _synthesize_with_llm(state: dict[str, Any]) -> str | None:
@@ -145,6 +152,7 @@ def _synthesize_with_llm(state: dict[str, Any]) -> str | None:
     try:
         from groq import Groq
 
+        print("SUTRADHAR MODEL:", SUTRADHAR_MODEL, "API_KEY:", GROQ_API_KEY[:5])
         client = Groq(api_key=GROQ_API_KEY)
         response = client.chat.completions.create(
             model=SUTRADHAR_MODEL,
@@ -165,8 +173,12 @@ def _synthesize_with_llm(state: dict[str, Any]) -> str | None:
             max_tokens=1000,
             response_format={"type": "json_object"},
         )
-        return str(json.loads(response.choices[0].message.content or "{}").get("synthesis", "")).strip() or None
-    except Exception:
+        raw_content = response.choices[0].message.content or "{}"
+        parsed = json.loads(raw_content)
+        res_str = str(parsed.get("synthesis") or parsed.get("response") or "").strip()
+        return res_str if res_str else None
+    except Exception as e:
+        print("LLM Synthesis Error:", repr(e))
         return None
 
 

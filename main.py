@@ -80,6 +80,8 @@ async def chat(request: ChatRequest) -> dict[str, Any]:
         "ocr_extracted_text": request.message,
     }
     result = graph.invoke(state)
+    if result.get("profile_updates"):
+        upsert_user_profile(request.user_id, result["profile_updates"])
     update_session(request.user_id, result)
     return result
 

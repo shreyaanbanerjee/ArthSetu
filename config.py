@@ -7,7 +7,7 @@ from typing import Final
 
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 
 APP_ENV: Final[str] = os.getenv("APP_ENV", "local")
