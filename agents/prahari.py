@@ -5,21 +5,17 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from config import GROQ_API_KEY, PRAHARI_MODEL, SCAM_CONFIDENCE_THRESHOLD
+from config import PRAHARI_MODEL, SCAM_CONFIDENCE_THRESHOLD
 from tools.scam_engine import compute_true_apr, extract_loan_terms, report_to_rbi_sachet, run_scam_detection
-
-
-PRAHARI_SYSTEM = """
-You are Prahari, ArthSetu's fraud sentinel. Analyse financial messages for scam patterns.
-Return valid JSON with scam_probability, scam_type, red_flags, loan_amount_inr, repayment_stated, period_months.
-"""
+from core.llm import call_llm, format_user_persona
 
 
 def prahari_node(state: dict[str, Any]) -> dict[str, Any]:
     """Run LLM and rule-based fraud checks, then store the verdict."""
     raw = state.get("raw_input", "")
     language = state.get("language", "hi")
-    triage = _llm_triage(raw) or {"scam_probability": 0.0, "scam_type": None, "red_flags": []}
+    profile = state.get("user_profile", {})
+    triage = _llm_triage(raw, profile) or {"scam_probability": 0.0, "scam_type": None, "red_flags": []}
     rule_result = run_scam_detection(raw)
     final_confidence = max(float(triage.get("scam_probability") or 0.0), float(rule_result["confidence"]))
     scam_detected = final_confidence >= SCAM_CONFIDENCE_THRESHOLD
@@ -52,22 +48,46 @@ def prahari_node(state: dict[str, Any]) -> dict[str, Any]:
     return state
 
 
-def _llm_triage(raw: str) -> dict[str, Any] | None:
-    """Use Groq for fraud triage when configured."""
-    if not GROQ_API_KEY:
-        return None
-    try:
-        from groq import Groq
+def _llm_triage(raw: str, profile: dict[str, Any]) -> dict[str, Any] | None:
+    """Use Gemini or Groq for fraud triage."""
+    user_persona = format_user_persona(profile)
+    system_prompt = f"""You are Prahari, ArthSetu's fraud sentinel. Analyze the financial message for potential scams, fraud, or predatory terms.
 
-        client = Groq(api_key=GROQ_API_KEY)
-        response = client.chat.completions.create(
-            model=PRAHARI_MODEL,
-            messages=[{"role": "system", "content": PRAHARI_SYSTEM}, {"role": "user", "content": raw}],
-            temperature=0.1,
-            max_tokens=400,
-            response_format={"type": "json_object"},
+{user_persona}
+
+Consider how this potential scam might target someone in their financial situation (e.g. predatory loans targeting low-income workers, fake subsidies/welfare schemes, OTP/UPI frauds).
+
+You must output ONLY a valid JSON object with the following structure:
+{{
+    "scam_probability": float (0.0 to 1.0),
+    "scam_type": "The type of scam if detected (e.g. Predatory Loan, Lottery Scam, UPI Fraud, KYC Fraud, etc.) or null",
+    "red_flags": ["list of red flags found"],
+    "loan_amount_inr": float or null,
+    "repayment_stated": float or null,
+    "period_months": int or null
+}}
+Do not add any markdown formatting outside the JSON. Return only valid JSON."""
+
+    try:
+        response_text = call_llm(
+            prompt=raw,
+            system_prompt=system_prompt,
+            response_format="json",
+            model=PRAHARI_MODEL
         )
-        return json.loads(response.choices[0].message.content or "{}")
+        if not response_text:
+            return None
+
+        cleaned_text = response_text.strip()
+        if cleaned_text.startswith("```"):
+            lines = cleaned_text.splitlines()
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            cleaned_text = "\n".join(lines).strip()
+
+        return json.loads(cleaned_text)
     except Exception:
         return None
 

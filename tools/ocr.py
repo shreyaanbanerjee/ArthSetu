@@ -7,16 +7,36 @@ from typing import Any
 
 
 def extract_text_from_image(image_bytes: bytes) -> str:
-    """Extract text from an image using available OCR libraries."""
+    """Extract text from an image using Gemini (or Tesseract fallback)."""
     if not image_bytes:
         return ""
     try:
+        import io
+        from PIL import Image
+        import google.generativeai as genai
+        from config import GEMINI_API_KEY
+
+        if GEMINI_API_KEY:
+            genai.configure(api_key=GEMINI_API_KEY)
+            model = genai.GenerativeModel("gemini-3.5-flash")
+            image = Image.open(io.BytesIO(image_bytes))
+            prompt = "Extract all text from this image exactly as it appears. Do not explain, just return the text."
+            response = model.generate_content([image, prompt])
+            if response.text:
+                return response.text.strip()
+    except Exception as e:
+        import logging
+        logging.getLogger("arthsetu.ocr").warning(f"Gemini OCR failed: {e}")
+
+    # Fallback to Tesseract if Gemini fails or is not configured
+    try:
         from PIL import Image
         import pytesseract
-
         image = Image.open(io.BytesIO(image_bytes))
         return pytesseract.image_to_string(image, lang="eng+hin").strip()
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.getLogger("arthsetu.ocr").error(f"Tesseract OCR failed: {e}")
         return ""
 
 

@@ -6,7 +6,8 @@ import json
 import re
 from typing import Any
 
-from config import DEFAULT_LANGUAGE, GROQ_API_KEY, LANGUAGE_MAP, SUTRADHAR_MODEL
+from config import DEFAULT_LANGUAGE, LANGUAGE_MAP, SUTRADHAR_MODEL
+from core.llm import call_llm, format_user_persona
 
 
 INTENT_LABELS = [
@@ -26,22 +27,14 @@ INTENT_LABELS = [
     "saaf_bolna",
     "general",
 ]
+# We'll import json here to ensure it's available for classification/synthesis parsing
+import json
 EMOTION_LABELS = ["calm", "stressed", "urgent", "curious"]
 
 
-SYSTEM_PROMPT = f"""
+SYSTEM_PROMPT_CLASS = f"""
 You are Sutradhar, the orchestrator of ArthSetu, India's AI financial guardian.
-Detect language, classify intent from {INTENT_LABELS}, detect emotional register from {EMOTION_LABELS},
-and synthesize agent outputs into one friendly, useful response. Never recommend specific financial products by brand.
-For final answers:
-- Start with a reassuring human sentence.
-- Give the verdict first if fraud risk exists.
-- Explain why in simple words.
-- Give 2-4 concrete next steps.
-- If useful, mention score/scheme/document findings.
-- Do not add generic scam warnings when no scam is detected and the user did not ask about fraud/security.
-- Keep it WhatsApp-friendly: short paragraphs, no jargon, no long tables.
-- If language is mr, answer in natural Marathi. If hi, answer in Hindi. If en, answer in English.
+Detect language, classify intent from {INTENT_LABELS}, and detect emotional register from {EMOTION_LABELS}.
 Return only valid JSON.
 """
 
@@ -51,9 +44,10 @@ def sutradhar_node(state: dict[str, Any]) -> dict[str, Any]:
     raw = state.get("raw_input", "")
     detected_lang = _detect_language(raw)
     agent_outputs = state.get("agent_outputs", {})
+    profile = state.get("user_profile", {})
 
     if not state.get("intent"):
-        classification = _classify_with_llm(raw, detected_lang) or _classify_locally(raw, detected_lang)
+        classification = _classify_with_llm(raw, detected_lang, profile) or _classify_locally(raw, detected_lang)
         state["language"] = classification["language"]
         state["intent"] = classification["intent"]
         state["emotional_register"] = classification["emotional_register"]
@@ -76,31 +70,45 @@ def _detect_language(text: str) -> str:
         return "en" if re.search(r"[A-Za-z]", text) else DEFAULT_LANGUAGE
 
 
-def _classify_with_llm(raw: str, detected_lang: str) -> dict[str, str] | None:
-    """Use Groq for intent classification when configured."""
-    if not GROQ_API_KEY:
-        return None
-    try:
-        from groq import Groq
+def _classify_with_llm(raw: str, detected_lang: str, profile: dict[str, Any]) -> dict[str, str] | None:
+    """Use Gemini/Groq for intent classification tailored with user persona context."""
+    user_persona = format_user_persona(profile)
 
-        client = Groq(api_key=GROQ_API_KEY)
-        response = client.chat.completions.create(
-            model=SUTRADHAR_MODEL,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": (
-                        "Return JSON with language, intent, emotional_register, synthesis.\n"
-                        f"Detected language hint: {detected_lang}\nUser message: {raw}"
-                    ),
-                },
-            ],
-            temperature=0.2,
-            max_tokens=300,
-            response_format={"type": "json_object"},
+    system_prompt = f"""You are Sutradhar, the orchestrator of ArthSetu, India's AI financial guardian.
+Detect language, classify intent from {INTENT_LABELS}, and detect emotional register from {EMOTION_LABELS}.
+
+{user_persona}
+
+Analyze the message under the user's financial profile.
+Return only valid JSON.
+"""
+
+    prompt = (
+        "Return JSON with keys: language, intent, emotional_register.\n"
+        f"Detected language hint: {detected_lang}\n"
+        f"User message: {raw}"
+    )
+
+    try:
+        response_text = call_llm(
+            prompt=prompt,
+            system_prompt=system_prompt,
+            response_format="json",
+            model=SUTRADHAR_MODEL
         )
-        parsed = json.loads(response.choices[0].message.content or "{}")
+        if not response_text:
+            return None
+
+        cleaned_text = response_text.strip()
+        if cleaned_text.startswith("```"):
+            lines = cleaned_text.splitlines()
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            cleaned_text = "\n".join(lines).strip()
+
+        parsed = json.loads(cleaned_text)
         intent = parsed.get("intent", "general")
         emotion = parsed.get("emotional_register", "calm")
         return {
@@ -141,33 +149,57 @@ def _classify_locally(raw: str, detected_lang: str) -> dict[str, str]:
 
 
 def _synthesize_with_llm(state: dict[str, Any]) -> str | None:
-    """Use Groq for final response synthesis when configured."""
-    if not GROQ_API_KEY:
-        return None
-    try:
-        from groq import Groq
+    """Use Gemini/Groq for final response synthesis incorporating user persona."""
+    profile = state.get("user_profile", {})
+    user_persona = format_user_persona(profile)
 
-        client = Groq(api_key=GROQ_API_KEY)
-        response = client.chat.completions.create(
-            model=SUTRADHAR_MODEL,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": (
-                        f"Language: {state.get('language', 'hi')}\n"
-                        f"Emotion: {state.get('emotional_register', 'calm')}\n"
-                        f"User message: {state.get('raw_input', '')}\n"
-                        f"Agent outputs: {json.dumps(state.get('agent_outputs', {}), ensure_ascii=False)}\n"
-                        "Return JSON with key synthesis only. Make the synthesis friendly and practical. Use the requested language exactly."
-                    ),
-                },
-            ],
-            temperature=0.3,
-            max_tokens=1000,
-            response_format={"type": "json_object"},
+    system_prompt = f"""You are Sutradhar, the orchestrator of ArthSetu, India's AI financial guardian.
+Synthesize all agent outputs into one friendly, extremely useful final response. Never recommend specific financial products by brand.
+
+{user_persona}
+
+For final answers:
+- Start with a reassuring human sentence.
+- Give the verdict first if fraud risk exists.
+- Explain why in simple words.
+- Give 2-4 concrete next steps.
+- If useful, mention score/scheme/document findings.
+- Do not add generic scam warnings when no scam is detected and the user did not ask about fraud/security.
+- Keep it WhatsApp-friendly: short paragraphs, no jargon, no long tables.
+- Synthesize based on the user's specific context (e.g. adjust tone/actions if they are a low-income farmer or have high debt).
+- If language is mr, answer in natural Marathi. If hi, answer in Hindi. If en, answer in English. If kn, answer in Kannada. If bn, answer in Bengali. If ta, answer in Tamil.
+Return only valid JSON with key 'synthesis' only.
+"""
+
+    prompt = (
+        f"Language: {state.get('language', 'hi')}\n"
+        f"Emotion: {state.get('emotional_register', 'calm')}\n"
+        f"User message: {state.get('raw_input', '')}\n"
+        f"Agent outputs: {json.dumps(state.get('agent_outputs', {}), ensure_ascii=False)}\n"
+        "Return JSON with key synthesis only. Make the synthesis friendly and practical. Use the requested language exactly."
+    )
+
+    try:
+        response_text = call_llm(
+            prompt=prompt,
+            system_prompt=system_prompt,
+            response_format="json",
+            model=SUTRADHAR_MODEL
         )
-        return str(json.loads(response.choices[0].message.content or "{}").get("synthesis", "")).strip() or None
+        if not response_text:
+            return None
+
+        cleaned_text = response_text.strip()
+        if cleaned_text.startswith("```"):
+            lines = cleaned_text.splitlines()
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            cleaned_text = "\n".join(lines).strip()
+
+        parsed = json.loads(cleaned_text)
+        return str(parsed.get("synthesis", "")).strip() or None
     except Exception:
         return None
 

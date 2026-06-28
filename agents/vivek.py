@@ -2,22 +2,87 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
+from config import VIVEK_MODEL
+from core.llm import call_llm, format_user_persona
 from tools.arth_score import calculate_arth_score
 
 
 def vivek_node(state: dict[str, Any]) -> dict[str, Any]:
     """Calculate Arth Score and behavioural nudges."""
     profile = state.get("user_profile", {})
+    language = state.get("language", "hi")
+
     score = calculate_arth_score(profile, state)
     state["arth_score_update"] = score
-    state.setdefault("agent_outputs", {})["vivek"] = {
+
+    parsed = _nudge_with_llm(profile, score, language) or _nudge_locally(score)
+    state.setdefault("agent_outputs", {})["vivek"] = parsed
+    return state
+
+
+def _nudge_with_llm(profile: dict[str, Any], score: dict[str, Any], language: str) -> dict[str, Any] | None:
+    """Use Gemini or Groq to generate customized behavioral nudges and reflections."""
+    user_persona = format_user_persona(profile)
+
+    system_prompt = f"""You are Vivek, ArthSetu's behavioral mirror and financial wisdom agent.
+Your task is to analyze the user's financial profile and their calculated Arth Score, and generate a customized behavioral nudge and reflection tailored to their job, income, and financial situation.
+
+{user_persona}
+
+Arth Score Details:
+- Total Score: {score.get('score')}/100
+- Band: {score.get('band')}
+- Dimension Scores: {score.get('dimensions')}
+
+Provide a highly targeted, realistic, actionable, and encouraging nudge and reflection in the target language ({language}). Avoid generalities.
+
+You must output ONLY a valid JSON object matching this structure:
+{{
+    "arth_score": {{
+        "score": {score.get('score')},
+        "dimensions": {json.dumps(score.get('dimensions'))},
+        "band": "{score.get('band')}",
+        "next_best_action": "{score.get('next_best_action')}"
+    }},
+    "nudge": "A simple, practical nudge (1-2 sentences) tailored to their situation and current score.",
+    "reflection": "An encouraging reflection or observation about their situation (1-2 sentences) to build their financial confidence."
+}}
+Do not add any markdown formatting outside the JSON. Return only valid JSON."""
+
+    try:
+        response_text = call_llm(
+            prompt="Analyze the profile and score to generate the nudge and reflection.",
+            system_prompt=system_prompt,
+            response_format="json",
+            model=VIVEK_MODEL
+        )
+        if not response_text:
+            return None
+
+        cleaned_text = response_text.strip()
+        if cleaned_text.startswith("```"):
+            lines = cleaned_text.splitlines()
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            cleaned_text = "\n".join(lines).strip()
+
+        return json.loads(cleaned_text)
+    except Exception:
+        return None
+
+
+def _nudge_locally(score: dict[str, Any]) -> dict[str, Any]:
+    """Fallback local nudge generator."""
+    return {
         "arth_score": score,
         "nudge": _nudge_for_score(score),
         "reflection": "Small repeatable actions matter more than one perfect month.",
     }
-    return state
 
 
 def _nudge_for_score(score: dict[str, Any]) -> str:
