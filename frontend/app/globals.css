@@ -153,11 +153,8 @@ html, body {
   width: 32px; height: 32px;
   border-radius: 50%;
   border: 1px solid var(--border);
-  background: rgba(255,255,255,0.06);
-  color: var(--text-dim);
+  background: rgba(255,255,255,0.05);
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
   -webkit-tap-highlight-color: transparent;
   flex-shrink: 0;
 }
@@ -235,7 +232,7 @@ html, body {
 }
 
 .hint-up    { top: 64px;  left: 50%; transform: translateX(-50%); }
-.hint-down  { bottom: 160px; left: 50%; transform: translateX(-50%); flex-direction: column-reverse; }
+.hint-down  { bottom: 24px; left: 50%; transform: translateX(-50%); flex-direction: column-reverse; }
 .hint-left  { left: 16px;  top: 50%; transform: translateY(-50%) rotate(0deg); align-items: flex-start; flex-direction: row; }
 .hint-right { right: 16px; top: 50%; transform: translateY(-50%); align-items: flex-end; flex-direction: row-reverse; }
 

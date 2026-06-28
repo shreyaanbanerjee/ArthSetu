@@ -188,7 +188,7 @@ def _synthesize_locally(state: dict[str, Any]) -> str:
                 "3. If money was deducted, contact your bank immediately and save screenshots. "
                 "4. Share this warning with family before they act on the same message."
             )
-        else:
+        elif state.get("intent") == "scam_check":
             parts.append(
                 "I did not find a strong scam signal in this message. Still, stay careful: no genuine bank or government service "
                 "will ask for OTP, UPI PIN, CVV, or full Aadhaar over chat."

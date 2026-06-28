@@ -282,9 +282,11 @@ export default function VoiceHub() {
   }, []);
 
   // ─── API Call ───────────────────────────────────────────────────────────────
-  const callAPI = useCallback(async (message: string, profileUpdates?: Record<string, unknown>) => {
-    setOrbState("thinking");
-    setShowResponse(false);
+  const callAPI = useCallback(async (message: string, profileUpdates?: Record<string, unknown>, silent: boolean = false) => {
+    if (!silent) {
+      setOrbState("thinking");
+      setShowResponse(false);
+    }
     try {
       const res = await fetch(`${API}/api/v1/chat`, {
         method: "POST",
@@ -311,13 +313,14 @@ export default function VoiceHub() {
         timestamp: Date.now(),
       };
 
-      setHistory(prev => [entry, ...prev.slice(0, 19)]);
-      setCurrentResponse(entry);
-      setOrbState("idle");
-      setShowResponse(true);
-
-      // Auto-speak the response
-      speak(response, language);
+      if (!silent) {
+        setHistory(prev => [entry, ...prev.slice(0, 19)]);
+        setCurrentResponse(entry);
+        setOrbState("idle");
+        setShowResponse(true);
+        // Auto-speak the response
+        speak(response, language);
+      }
 
       // Add nudge cards based on what came back
       const newNudges: typeof nudgeCards = [];
@@ -455,8 +458,8 @@ export default function VoiceHub() {
       const res = await fetch(`${API}/api/v1/profile/${profile.user_id}`);
       if (res.ok) {
         const profile = await res.json();
-        // Trigger a score query to actually compute the Arth Score
-        const result = await callAPI("What is my Arth Score?", profile);
+        // Trigger a score query to actually compute the Arth Score (silent mode)
+        const result = await callAPI("What is my Arth Score?", profile, true);
         if (result?.score) {
           setScoreData(result.score);
           setScoreLoaded(true);
@@ -471,7 +474,7 @@ export default function VoiceHub() {
     if (schemesLoaded) return;
     setSchemeLoading(true);
     try {
-      const result = await callAPI("Which government schemes am I eligible for?");
+      const result = await callAPI("Which government schemes am I eligible for?", undefined, true);
       if (result?.schemes && result.schemes.length > 0) {
         setSchemeResults(result.schemes);
         setSchemesLoaded(true);

@@ -25,10 +25,19 @@ def prahari_node(state: dict[str, Any]) -> dict[str, Any]:
     scam_detected = final_confidence >= SCAM_CONFIDENCE_THRESHOLD
 
     terms = extract_loan_terms(raw)
-    principal = triage.get("loan_amount_inr") or terms.get("loan_amount_inr")
-    repayment = triage.get("repayment_stated") or terms.get("repayment_stated")
-    months = triage.get("period_months") or terms.get("period_months")
-    apr_info = compute_true_apr(float(principal), float(repayment), int(months)) if principal and repayment and months else None
+
+    def _parse_num(v: Any) -> float | None:
+        import re
+        if v is None: return None
+        if isinstance(v, (int, float)): return float(v)
+        m = re.search(r"(\d+(?:,\d+)*(?:\.\d+)?)", str(v))
+        return float(m.group(1).replace(",", "")) if m else None
+
+    principal = _parse_num(triage.get("loan_amount_inr") or terms.get("loan_amount_inr"))
+    repayment = _parse_num(triage.get("repayment_stated") or terms.get("repayment_stated"))
+    months = _parse_num(triage.get("period_months") or terms.get("period_months"))
+    
+    apr_info = compute_true_apr(principal, repayment, int(months)) if principal and repayment and months else None
 
     sachet_reference = None
     if scam_detected:
