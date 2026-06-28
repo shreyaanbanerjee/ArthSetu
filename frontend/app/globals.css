@@ -147,7 +147,22 @@ html, body {
 }
 
 .status-left { display: flex; align-items: center; gap: 10px; }
-.status-right { display: flex; align-items: center; gap: 8px; }
+.status-right { display: flex; align-items: center; gap: 10px; }
+
+.mute-btn {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.06);
+  color: var(--text-dim);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+.mute-btn:hover { background: rgba(255,255,255,0.12); color: var(--text); border-color: var(--border-bright); }
+.mute-btn:active { transform: scale(0.92); }
 
 .app-name {
   font-size: 15px;
