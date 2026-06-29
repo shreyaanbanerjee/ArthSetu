@@ -13,7 +13,7 @@ export default function SchemesPage() {
   async function match() {
     const res = await fetch(`${API}/api/v1/chat`, {
       method: "POST",
-      headers: {"Content-Type": "application/json"},
+      headers: { "ngrok-skip-browser-warning": "true","Content-Type": "application/json"},
       body: JSON.stringify({
         user_id: "demo-user",
         message: "Which schemes am I eligible for?",

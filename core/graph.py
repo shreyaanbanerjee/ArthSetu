@@ -36,11 +36,22 @@ class ArthSetuGraph:
         from agents.shilpi import shilpi_node
         from agents.sutradhar import sutradhar_node
         from agents.vivek import vivek_node
-        from core.guardrails import guardrail_node
+        from core.guardrails import input_guardrail_node, output_guardrail_node
 
         state.setdefault("agent_outputs", {})
         state.setdefault("scheme_matches", [])
+
+        # Pass 1: Classify intent and language
         state = sutradhar_node(state)
+
+        # Input guardrails — PII redaction, prompt injection, toxicity
+        state = input_guardrail_node(state)
+        if state.get("guardrail_blocked"):
+            # Hard block: skip all agents and synthesis, return the
+            # guardrail's canned response directly
+            return state
+
+        # Run selected agents
         for agent_name in route_after_sutradhar(state):
             if agent_name == "prahari":
                 state = prahari_node(state)
@@ -50,8 +61,12 @@ class ArthSetuGraph:
                 state = shilpi_node(state)
             elif agent_name == "vivek":
                 state = vivek_node(state)
+
+        # Pass 2: Synthesize final response from agent outputs
         state = sutradhar_node(state)
-        state = guardrail_node(state)
+
+        # Output guardrails — hallucination check, financial safety, PII echo
+        state = output_guardrail_node(state)
         return state
 
 

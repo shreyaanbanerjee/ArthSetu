@@ -45,10 +45,13 @@ html, body {
 }
 
 .onboard-shell {
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 20px;
+  padding-bottom: 40px;
   background: radial-gradient(ellipse at top, #2b0707, #000 70%);
 }
 

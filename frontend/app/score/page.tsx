@@ -9,7 +9,7 @@ export default function ScorePage() {
   const [session, setSession] = useState<any>(null);
 
   useEffect(() => {
-    fetch(`${API}/api/v1/session/demo-user`).then((r) => r.json()).then(setSession).catch(() => setSession(null));
+    fetch(`${API}/api/v1/session/demo-user`, { headers: { "ngrok-skip-browser-warning": "true" } }).then((r) => r.json()).then(setSession).catch(() => setSession(null));
   }, []);
 
   const score = session?.arth_score_update || {

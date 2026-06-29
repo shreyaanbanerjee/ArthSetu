@@ -299,7 +299,7 @@ export default function VoiceHub() {
         try {
           res = await fetch(`${baseUrl}/api/v1/chat`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
             body,
           });
           if (res.ok) break;
@@ -376,16 +376,22 @@ export default function VoiceHub() {
 
   async function saveProfile() {
     const normalized = { ...profile, language };
-    localStorage.setItem("arthsetu_profile", JSON.stringify(normalized));
+    try {
+      localStorage.setItem("arthsetu_profile", JSON.stringify(normalized));
+    } catch (e) {
+      console.warn("localStorage is disabled or unavailable", e);
+    }
     setProfile(normalized);
     setProfileReady(true);
     try {
       await fetch(`${API}/api/v1/profile/${normalized.user_id}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
         body: JSON.stringify({ updates: normalized }),
       });
-    } catch {}
+    } catch (err) {
+      console.error("Failed to sync profile with backend", err);
+    }
   }
 
   // ─── Voice Input ─────────────────────────────────────────────────────────────
@@ -415,9 +421,13 @@ export default function VoiceHub() {
       setTranscript(voicePrefixRef.current ? "Listening... (Context: " + voicePrefixRef.current + ")" : ""); 
     };
     r.onend = () => { 
-      setOrbState(current => current === "listening" ? "idle" : current); 
-      // Clear prefix if we stopped without finalizing
-      if (orbState === "listening") voicePrefixRef.current = "";
+      setOrbState(current => {
+        if (current === "listening") {
+          voicePrefixRef.current = "";
+          return "idle";
+        }
+        return current;
+      });
     };
     r.onerror = () => { 
       setOrbState("idle"); 
@@ -490,7 +500,7 @@ export default function VoiceHub() {
     if (scoreLoaded) return;
     setScoreLoading(true);
     try {
-      const res = await fetch(`${API_FALLBACKS[0]}/api/v1/profile/${profile.user_id}`);
+      const res = await fetch(`${API_FALLBACKS[0]}/api/v1/profile/${profile.user_id}`, { headers: { "ngrok-skip-browser-warning": "true" } });
       if (res.ok) {
         const profile = await res.json();
         // Trigger a score query to actually compute the Arth Score
@@ -567,21 +577,21 @@ export default function VoiceHub() {
           <h1>Set up your profile</h1>
           <p>Used for Arth Score, scheme matching, nudges, and personalized help.</p>
           <div className="onboard-grid">
-            <label>Name<input value={profile.name} onChange={e => setProfile({ ...profile, name: e.target.value })} /></label>
-            <label>Language<select value={language} onChange={e => setLanguage(e.target.value)}>{LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select></label>
-            <label>Occupation<select value={profile.occupation} onChange={e => setProfile({ ...profile, occupation: e.target.value })}><option value="gig_worker">Gig worker</option><option value="farmer">Farmer</option><option value="daily_wage">Daily wage</option><option value="self_employed">Self employed</option><option value="salaried">Salaried</option><option value="street_vendor">Street vendor</option></select></label>
-            <label>Age<input type="number" value={profile.age} onChange={e => setProfile({ ...profile, age: Number(e.target.value) })} /></label>
-            <label>Monthly income<input type="number" value={profile.monthly_income_inr} onChange={e => setProfile({ ...profile, monthly_income_inr: Number(e.target.value) })} /></label>
-            <label>Monthly expenses<input type="number" value={profile.monthly_expenses_inr} onChange={e => setProfile({ ...profile, monthly_expenses_inr: Number(e.target.value) })} /></label>
-            <label>Emergency fund<input type="number" value={profile.emergency_fund_inr} onChange={e => setProfile({ ...profile, emergency_fund_inr: Number(e.target.value) })} /></label>
-            <label>Monthly EMI<input type="number" value={profile.monthly_debt_emi_inr} onChange={e => setProfile({ ...profile, monthly_debt_emi_inr: Number(e.target.value) })} /></label>
+            <label>Name<input suppressHydrationWarning={true} value={profile.name} onChange={e => setProfile({ ...profile, name: e.target.value })} /></label>
+            <label>Language<select suppressHydrationWarning={true} value={language} onChange={e => setLanguage(e.target.value)}>{LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select></label>
+            <label>Occupation<select suppressHydrationWarning={true} value={profile.occupation} onChange={e => setProfile({ ...profile, occupation: e.target.value })}><option value="gig_worker">Gig worker</option><option value="farmer">Farmer</option><option value="daily_wage">Daily wage</option><option value="street_vendor">Street vendor</option><option value="salaried">Salaried</option><option value="self_employed">Self employed</option></select></label>
+            <label>Age<input suppressHydrationWarning={true} type="number" value={profile.age} onChange={e => setProfile({ ...profile, age: Number(e.target.value) })} /></label>
+            <label>Monthly income<input suppressHydrationWarning={true} type="number" value={profile.monthly_income_inr} onChange={e => setProfile({ ...profile, monthly_income_inr: Number(e.target.value) })} /></label>
+            <label>Monthly expenses<input suppressHydrationWarning={true} type="number" value={profile.monthly_expenses_inr} onChange={e => setProfile({ ...profile, monthly_expenses_inr: Number(e.target.value) })} /></label>
+            <label>Emergency fund<input suppressHydrationWarning={true} type="number" value={profile.emergency_fund_inr} onChange={e => setProfile({ ...profile, emergency_fund_inr: Number(e.target.value) })} /></label>
+            <label>Monthly EMI<input suppressHydrationWarning={true} type="number" value={profile.monthly_debt_emi_inr} onChange={e => setProfile({ ...profile, monthly_debt_emi_inr: Number(e.target.value) })} /></label>
           </div>
           <div className="check-grid">
-            <label><input type="checkbox" checked={profile.has_bank_account} onChange={e => setProfile({ ...profile, has_bank_account: e.target.checked })} /> Bank account</label>
-            <label><input type="checkbox" checked={profile.land_ownership} onChange={e => setProfile({ ...profile, land_ownership: e.target.checked })} /> Land owner</label>
-            <label><input type="checkbox" checked={profile.has_disability} onChange={e => setProfile({ ...profile, has_disability: e.target.checked })} /> Disability support</label>
-            <label><input type="checkbox" checked={profile.has_daughter_below_10} onChange={e => setProfile({ ...profile, has_daughter_below_10: e.target.checked })} /> Daughter below 10</label>
-            <label><input type="checkbox" checked={profile.not_epf_member} onChange={e => setProfile({ ...profile, not_epf_member: e.target.checked })} /> Not EPF member</label>
+            <label><input suppressHydrationWarning={true} type="checkbox" checked={profile.has_bank_account} onChange={e => setProfile({ ...profile, has_bank_account: e.target.checked })} /> Bank account</label>
+            <label><input suppressHydrationWarning={true} type="checkbox" checked={profile.land_ownership} onChange={e => setProfile({ ...profile, land_ownership: e.target.checked })} /> Land owner</label>
+            <label><input suppressHydrationWarning={true} type="checkbox" checked={profile.has_disability} onChange={e => setProfile({ ...profile, has_disability: e.target.checked })} /> Disability support</label>
+            <label><input suppressHydrationWarning={true} type="checkbox" checked={profile.has_daughter_below_10} onChange={e => setProfile({ ...profile, has_daughter_below_10: e.target.checked })} /> Daughter below 10</label>
+            <label><input suppressHydrationWarning={true} type="checkbox" checked={profile.not_epf_member} onChange={e => setProfile({ ...profile, not_epf_member: e.target.checked })} /> Not EPF member</label>
           </div>
           <button className="onboard-btn" onClick={saveProfile}>Continue</button>
         </div>
@@ -673,7 +683,7 @@ export default function VoiceHub() {
             <div className="orb-ring" />
             <button
               className={`orb-core ${orbState === "listening" ? "listening" : orbState === "thinking" ? "thinking" : ""}`}
-              onClick={startListening}
+              onClick={() => startListening()}
               id="voice-orb"
               aria-label="Tap to speak to ArthSetu"
             >
