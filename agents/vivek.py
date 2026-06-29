@@ -9,24 +9,23 @@ from config import VIVEK_MODEL
 from core.llm import call_llm, format_user_persona
 from tools.arth_score import calculate_arth_score
 
-
 def vivek_node(state: dict[str, Any]) -> dict[str, Any]:
     """Calculate Arth Score and behavioural nudges."""
     profile = state.get("user_profile", {})
     language = state.get("language", "hi")
-
     score = calculate_arth_score(profile, state)
+    
+    if state.get("profile_updated_dynamically"):
+        score["next_best_action"] = f"Your profile was automatically updated based on what you said! Your new Arth Score is {score.get('score')}/100. " + score.get("next_best_action", "")
+        
     state["arth_score_update"] = score
-
     parsed = _nudge_with_llm(profile, score, language) or _nudge_locally(score)
     state.setdefault("agent_outputs", {})["vivek"] = parsed
     return state
 
-
 def _nudge_with_llm(profile: dict[str, Any], score: dict[str, Any], language: str) -> dict[str, Any] | None:
     """Use Gemini or Groq to generate customized behavioral nudges and reflections."""
     user_persona = format_user_persona(profile)
-
     system_prompt = f"""You are Vivek, ArthSetu's behavioral mirror and financial wisdom agent.
 Your task is to analyze the user's financial profile and their calculated Arth Score, and generate a customized behavioral nudge and reflection tailored to their job, income, and financial situation.
 
@@ -75,7 +74,6 @@ Do not add any markdown formatting outside the JSON. Return only valid JSON."""
     except Exception:
         return None
 
-
 def _nudge_locally(score: dict[str, Any]) -> dict[str, Any]:
     """Fallback local nudge generator."""
     return {
@@ -83,7 +81,6 @@ def _nudge_locally(score: dict[str, Any]) -> dict[str, Any]:
         "nudge": _nudge_for_score(score),
         "reflection": "Small repeatable actions matter more than one perfect month.",
     }
-
 
 def _nudge_for_score(score: dict[str, Any]) -> str:
     """Choose a practical behavioural nudge."""
@@ -95,3 +92,4 @@ def _nudge_for_score(score: dict[str, Any]) -> str:
     if band == "improving":
         return "Increase savings by 1 percent this month if essentials are covered."
     return "Protect the habit: review your plan once a week."
+

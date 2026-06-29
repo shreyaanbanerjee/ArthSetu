@@ -24,6 +24,7 @@ class GraphState(TypedDict, total=False):
     error: Optional[str]
     user_profile: dict[str, Any]
     ocr_extracted_text: Optional[str]
+    profile_updated_dynamically: bool
 
 
 class ArthSetuGraph:
@@ -37,9 +38,14 @@ class ArthSetuGraph:
         from agents.sutradhar import sutradhar_node
         from agents.vivek import vivek_node
         from core.guardrails import input_guardrail_node, output_guardrail_node
+        from agents.extractor import extractor_node
 
         state.setdefault("agent_outputs", {})
         state.setdefault("scheme_matches", [])
+        state.setdefault("profile_updated_dynamically", False)
+        
+        # Extract dynamic profile updates
+        state = extractor_node(state)
 
         # Pass 1: Classify intent and language
         state = sutradhar_node(state)
@@ -91,4 +97,6 @@ def route_after_sutradhar(state: GraphState) -> list[str]:
         pass
     if intent == "general":
         agents.extend(["bodhak", "shilpi", "vivek"])
+    if state.get("profile_updated_dynamically") and "vivek" not in agents:
+        agents.append("vivek")
     return list(dict.fromkeys(agents))

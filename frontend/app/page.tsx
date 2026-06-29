@@ -28,8 +28,10 @@ interface HistoryEntry {
 interface SchemeItem {
   name: string;
   description?: string;
+  benefit?: string;
   eligibility?: string;
   tags?: string[];
+  match_reasons?: string[];
 }
 
 interface UserProfile {
@@ -92,21 +94,65 @@ function now() {
 
 // Speak text via browser TTS (respects global mute)
 let _isMuted = false;
+
+function stopSpeaking() {
+  if (!("speechSynthesis" in window)) return;
+  window.speechSynthesis.cancel();
+}
+
+// Speak text via browser TTS
 function speak(text: string, lang: string) {
   if (_isMuted) return;
   if (!("speechSynthesis" in window)) return;
-  window.speechSynthesis.cancel();
-  const utt = new SpeechSynthesisUtterance(text);
+  const cleanText = text.replace(/[*#]/g, ""); // Strip basic markdown
+
   const langMap: Record<string, string> = {
     hi: "hi-IN", en: "en-IN", mr: "mr-IN", kn: "kn-IN",
     ta: "ta-IN", te: "te-IN", bn: "bn-IN", gu: "gu-IN", pa: "pa-IN",
   };
-  utt.lang = langMap[lang] || "hi-IN";
-  const voices = window.speechSynthesis.getVoices();
-  const voice = voices.find(v => v.lang.toLowerCase().startsWith((langMap[lang] || "hi-IN").toLowerCase().split("-")[0]));
-  if (voice) utt.voice = voice;
-  utt.rate = 0.9;
-  window.speechSynthesis.speak(utt);
+  const targetLang = langMap[lang] || "hi-IN";
+
+  const trySpeak = () => {
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.resume();
+    
+    const utt = new SpeechSynthesisUtterance(cleanText);
+    utt.lang = targetLang;
+    utt.rate = 0.9;
+    
+    const currentVoices = window.speechSynthesis.getVoices();
+    let voice = currentVoices.find(v => v.lang.toLowerCase().startsWith(targetLang.toLowerCase().split("-")[0]));
+    
+    // Fallback: If Marathi voice not found, try Hindi (since both use Devanagari)
+    if (!voice && lang === 'mr') {
+      voice = currentVoices.find(v => v.lang.toLowerCase().startsWith("hi"));
+      if (voice) utt.lang = "hi-IN"; // Override lang so TTS engine understands
+    }
+    
+    // Fallback for ANY missing native voice: try to find Google Hindi as a generic fallback for Indian scripts
+    if (!voice && (lang === 'hi' || lang === 'mr' || lang === 'bn' || lang === 'gu' || lang === 'pa')) {
+       voice = currentVoices.find(v => v.lang.toLowerCase().startsWith("hi"));
+       if (voice) utt.lang = "hi-IN";
+    }
+    
+    if (voice) utt.voice = voice;
+    window.speechSynthesis.speak(utt);
+  };
+
+  if (window.speechSynthesis.getVoices().length === 0) {
+    const handler = () => {
+      window.speechSynthesis.removeEventListener('voiceschanged', handler);
+      trySpeak();
+    };
+    window.speechSynthesis.addEventListener('voiceschanged', handler);
+    // Timeout fallback just in case event never fires
+    setTimeout(() => {
+      window.speechSynthesis.removeEventListener('voiceschanged', handler);
+      trySpeak();
+    }, 500);
+  } else {
+    trySpeak();
+  }
 }
 function stopSpeaking() {
   if ("speechSynthesis" in window) window.speechSynthesis.cancel();
@@ -230,6 +276,7 @@ export default function VoiceHub() {
   const [currentResponse, setCurrentResponse] = useState<HistoryEntry | null>(null);
   const [showResponse, setShowResponse] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [showProfileEdit, setShowProfileEdit] = useState(false);
 
   // Smart actions state
   const [schemeResults, setSchemeResults] = useState<SchemeItem[]>([]);
@@ -272,6 +319,20 @@ export default function VoiceHub() {
       localStorage.removeItem("arthsetu_profile");
     }
   }, []);
+
+  // Fetch history when profile is ready
+  useEffect(() => {
+    if (profileReady && profile.user_id) {
+      fetch(`${API_FALLBACKS[0]}/api/v1/history/${profile.user_id}`)
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data) && data.length > 0) {
+            setHistory(data);
+          }
+        })
+        .catch(err => console.log("Failed to load history", err));
+    }
+  }, [profileReady, profile.user_id]);
 
   // ─── Lifecycle ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -383,6 +444,7 @@ export default function VoiceHub() {
     }
     setProfile(normalized);
     setProfileReady(true);
+    setShowProfileEdit(false);
     try {
       await fetch(`${API}/api/v1/profile/${normalized.user_id}`, {
         method: "POST",
@@ -396,12 +458,22 @@ export default function VoiceHub() {
 
   // ─── Voice Input ─────────────────────────────────────────────────────────────
   const startListening = useCallback((prefix?: string) => {
+    // Stop any ongoing speech when a new interaction begins
+    stopSpeaking();
+    
     if (orbState !== "idle") return;
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) {
       setTranscript("Voice not supported. Use Chrome or Edge.");
       setShowResponse(false);
       return;
+    }
+    
+    // Unlock speech synthesis context
+    if ("speechSynthesis" in window) {
+      const u = new SpeechSynthesisUtterance("");
+      u.volume = 0;
+      window.speechSynthesis.speak(u);
     }
     
     // Set prefix if provided
@@ -569,32 +641,39 @@ export default function VoiceHub() {
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────────
+  const profileForm = (
+    <div className="onboard-card">
+      <div className="app-name">ArthSetu</div>
+      <h1>{profileReady ? "Edit Profile" : "Set up your profile"}</h1>
+      <p>Used for Arth Score, scheme matching, nudges, and personalized help.</p>
+      <div className="onboard-grid">
+        <label>Name<input suppressHydrationWarning={true} value={profile.name} onChange={e => setProfile({ ...profile, name: e.target.value })} /></label>
+        <label>Language<select suppressHydrationWarning={true} value={language} onChange={e => setLanguage(e.target.value)}>{LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select></label>
+        <label>Occupation<select suppressHydrationWarning={true} value={profile.occupation} onChange={e => setProfile({ ...profile, occupation: e.target.value })}><option value="gig_worker">Gig worker</option><option value="farmer">Farmer</option><option value="daily_wage">Daily wage</option><option value="street_vendor">Street vendor</option><option value="salaried">Salaried</option><option value="self_employed">Self employed</option></select></label>
+        <label>Age<input suppressHydrationWarning={true} type="number" value={profile.age} onChange={e => setProfile({ ...profile, age: Number(e.target.value) })} /></label>
+        <label>Monthly income<input suppressHydrationWarning={true} type="number" value={profile.monthly_income_inr} onChange={e => setProfile({ ...profile, monthly_income_inr: Number(e.target.value) })} /></label>
+        <label>Monthly expenses<input suppressHydrationWarning={true} type="number" value={profile.monthly_expenses_inr} onChange={e => setProfile({ ...profile, monthly_expenses_inr: Number(e.target.value) })} /></label>
+        <label>Emergency fund<input suppressHydrationWarning={true} type="number" value={profile.emergency_fund_inr} onChange={e => setProfile({ ...profile, emergency_fund_inr: Number(e.target.value) })} /></label>
+        <label>Monthly EMI<input suppressHydrationWarning={true} type="number" value={profile.monthly_debt_emi_inr} onChange={e => setProfile({ ...profile, monthly_debt_emi_inr: Number(e.target.value) })} /></label>
+      </div>
+      <div className="check-grid">
+        <label><input suppressHydrationWarning={true} type="checkbox" checked={profile.has_bank_account} onChange={e => setProfile({ ...profile, has_bank_account: e.target.checked })} /> Bank account</label>
+        <label><input suppressHydrationWarning={true} type="checkbox" checked={profile.land_ownership} onChange={e => setProfile({ ...profile, land_ownership: e.target.checked })} /> Land owner</label>
+        <label><input suppressHydrationWarning={true} type="checkbox" checked={profile.has_disability} onChange={e => setProfile({ ...profile, has_disability: e.target.checked })} /> Disability support</label>
+        <label><input suppressHydrationWarning={true} type="checkbox" checked={profile.has_daughter_below_10} onChange={e => setProfile({ ...profile, has_daughter_below_10: e.target.checked })} /> Daughter below 10</label>
+        <label><input suppressHydrationWarning={true} type="checkbox" checked={profile.not_epf_member} onChange={e => setProfile({ ...profile, not_epf_member: e.target.checked })} /> Not EPF member</label>
+      </div>
+      <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+        {profileReady && <button className="onboard-btn" style={{ background: "rgba(255,255,255,0.1)", flex: 1 }} onClick={() => setShowProfileEdit(false)}>Cancel</button>}
+        <button className="onboard-btn" style={{ flex: 2 }} onClick={saveProfile}>Save & Continue</button>
+      </div>
+    </div>
+  );
+
   if (!profileReady) {
     return (
       <div className="onboard-shell">
-        <div className="onboard-card">
-          <div className="app-name">ArthSetu</div>
-          <h1>Set up your profile</h1>
-          <p>Used for Arth Score, scheme matching, nudges, and personalized help.</p>
-          <div className="onboard-grid">
-            <label>Name<input suppressHydrationWarning={true} value={profile.name} onChange={e => setProfile({ ...profile, name: e.target.value })} /></label>
-            <label>Language<select suppressHydrationWarning={true} value={language} onChange={e => setLanguage(e.target.value)}>{LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select></label>
-            <label>Occupation<select suppressHydrationWarning={true} value={profile.occupation} onChange={e => setProfile({ ...profile, occupation: e.target.value })}><option value="gig_worker">Gig worker</option><option value="farmer">Farmer</option><option value="daily_wage">Daily wage</option><option value="street_vendor">Street vendor</option><option value="salaried">Salaried</option><option value="self_employed">Self employed</option></select></label>
-            <label>Age<input suppressHydrationWarning={true} type="number" value={profile.age} onChange={e => setProfile({ ...profile, age: Number(e.target.value) })} /></label>
-            <label>Monthly income<input suppressHydrationWarning={true} type="number" value={profile.monthly_income_inr} onChange={e => setProfile({ ...profile, monthly_income_inr: Number(e.target.value) })} /></label>
-            <label>Monthly expenses<input suppressHydrationWarning={true} type="number" value={profile.monthly_expenses_inr} onChange={e => setProfile({ ...profile, monthly_expenses_inr: Number(e.target.value) })} /></label>
-            <label>Emergency fund<input suppressHydrationWarning={true} type="number" value={profile.emergency_fund_inr} onChange={e => setProfile({ ...profile, emergency_fund_inr: Number(e.target.value) })} /></label>
-            <label>Monthly EMI<input suppressHydrationWarning={true} type="number" value={profile.monthly_debt_emi_inr} onChange={e => setProfile({ ...profile, monthly_debt_emi_inr: Number(e.target.value) })} /></label>
-          </div>
-          <div className="check-grid">
-            <label><input suppressHydrationWarning={true} type="checkbox" checked={profile.has_bank_account} onChange={e => setProfile({ ...profile, has_bank_account: e.target.checked })} /> Bank account</label>
-            <label><input suppressHydrationWarning={true} type="checkbox" checked={profile.land_ownership} onChange={e => setProfile({ ...profile, land_ownership: e.target.checked })} /> Land owner</label>
-            <label><input suppressHydrationWarning={true} type="checkbox" checked={profile.has_disability} onChange={e => setProfile({ ...profile, has_disability: e.target.checked })} /> Disability support</label>
-            <label><input suppressHydrationWarning={true} type="checkbox" checked={profile.has_daughter_below_10} onChange={e => setProfile({ ...profile, has_daughter_below_10: e.target.checked })} /> Daughter below 10</label>
-            <label><input suppressHydrationWarning={true} type="checkbox" checked={profile.not_epf_member} onChange={e => setProfile({ ...profile, not_epf_member: e.target.checked })} /> Not EPF member</label>
-          </div>
-          <button className="onboard-btn" onClick={saveProfile}>Continue</button>
-        </div>
+        {profileForm}
       </div>
     );
   }
@@ -755,17 +834,29 @@ export default function VoiceHub() {
               <div className="nudge-waveform">
                 <span /><span /><span /><span /><span /><span />
               </div>
-              <button className="play-btn" onClick={(e) => { e.stopPropagation(); playNudge(n.text); }} aria-label="Play audio">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
-                  <polygon points="5,3 19,12 5,21" />
-                </svg>
-              </button>
-              <button
-                className="play-btn"
-                style={{ fontSize: 12, width: 24, height: 24, background: "rgba(255,255,255,0.04)" }}
-                onClick={(e) => { e.stopPropagation(); dismissNudge(n.id); }}
-                aria-label="Dismiss"
-              >✕</button>
+              <div style={{ display: "flex", gap: 4 }}>
+                <button className="play-btn" onClick={(e) => { e.stopPropagation(); playNudge(n.text); }} aria-label="Play audio">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+                    <polygon points="5,3 19,12 5,21" />
+                  </svg>
+                </button>
+                <button
+                  className="play-btn"
+                  style={{ background: "rgba(229,62,62,0.4)" }}
+                  onClick={(e) => { e.stopPropagation(); stopSpeaking(); }}
+                  aria-label="Stop audio"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="white">
+                    <rect x="6" y="6" width="12" height="12" />
+                  </svg>
+                </button>
+                <button
+                  className="play-btn"
+                  style={{ fontSize: 12, width: 24, height: 24, background: "rgba(255,255,255,0.04)" }}
+                  onClick={(e) => { e.stopPropagation(); dismissNudge(n.id); stopSpeaking(); }}
+                  aria-label="Dismiss"
+                >✕</button>
+              </div>
             </div>
           ))}
         </div>
@@ -922,10 +1013,22 @@ export default function VoiceHub() {
                 schemeResults.map((s, i) => (
                   <div key={i} className="scheme-card">
                     <div className="scheme-name">{s.name}</div>
+                    {s.benefit && <div className="scheme-desc">{s.benefit}</div>}
                     {s.description && <div className="scheme-desc">{s.description}</div>}
-                    {s.eligibility && <div className="scheme-desc" style={{ marginTop: 4, fontStyle: "italic" }}>{s.eligibility}</div>}
+                    <div className="scheme-desc" style={{ marginTop: 4, fontStyle: "italic", color: "var(--green)" }}>
+                      ✓ Verified via India Govt DB (myscheme.gov.in)
+                    </div>
+                    {(s.match_reasons && s.match_reasons.length > 0) ? (
+                      <div className="scheme-desc" style={{ marginTop: 4 }}>
+                        <strong>Matched because:</strong> {s.match_reasons.join(", ")}
+                      </div>
+                    ) : s.eligibility ? (
+                      <div className="scheme-desc" style={{ marginTop: 4 }}>
+                        <strong>Matched because:</strong> {s.eligibility}
+                      </div>
+                    ) : null}
                     {s.tags && s.tags.length > 0 && (
-                      <div className="scheme-tags">
+                      <div className="scheme-tags" style={{ marginTop: 6 }}>
                         {s.tags.map((t, j) => <span key={j} className="scheme-tag">{t}</span>)}
                       </div>
                     )}
@@ -938,22 +1041,19 @@ export default function VoiceHub() {
           {/* Fraud / Scam Check */}
           <div
             id="action-fraud-check"
-            className={`action-card ${fraudLoading ? "loading" : ""}`}
-            onClick={runFraudCheck}
+            className="action-card"
+            onClick={() => {
+              closePanel();
+              startListening("Check this for fraud: ");
+            }}
           >
             <div className="action-icon-wrap red">🛡️</div>
             <div className="action-info">
               <div className="action-title">Prahari Fraud Check</div>
-              <div className="action-desc">Run scam detection on your last message or speak a suspicious one</div>
+              <div className="action-desc">Run scam detection on any suspicious message or call</div>
             </div>
-            {fraudLoading ? <div className="spinner" /> : (
-              <svg className="action-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
-            )}
+            <svg className="action-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
           </div>
-
-          {fraudCheckResult && (
-            <div className="action-text" style={{ margin: "0 0 4px" }}>{fraudCheckResult}</div>
-          )}
 
           {/* Arth Score */}
           <div
@@ -975,7 +1075,7 @@ export default function VoiceHub() {
             className="action-card"
             onClick={() => {
               closePanel();
-              callAPI("Plan my monthly budget. My income is Rs 20000 and expenses are around Rs 14000.");
+              startListening("Plan my budget. My specific details are: ");
             }}
           >
             <div className="action-icon-wrap orange">💰</div>
@@ -992,7 +1092,7 @@ export default function VoiceHub() {
             className="action-card"
             onClick={() => {
               closePanel();
-              callAPI("Explain what APR means and why it matters for loans in simple Hindi.");
+              startListening("Paisa Padhai: Explain ");
             }}
           >
             <div className="action-icon-wrap purple">🎓</div>
@@ -1037,16 +1137,6 @@ export default function VoiceHub() {
           <div className="support-list">
             <div className="support-item" onClick={() => {
               closePanel();
-              startListening("I think I am being scammed. Here is what happened: ");
-            }}>
-              <span className="support-icon">🚨</span>
-              <div>
-                <div className="support-label">Emergency Scam Alert</div>
-                <div className="support-desc">Immediate fraud help — Prahari activates instantly</div>
-              </div>
-            </div>
-            <div className="support-item" onClick={() => {
-              closePanel();
               startListening("I want to report a financial fraud. Here are the details: ");
             }}>
               <span className="support-icon">📋</span>
@@ -1063,6 +1153,16 @@ export default function VoiceHub() {
               <div>
                 <div className="support-label">Kisan Support</div>
                 <div className="support-desc">PM-Kisan, crop insurance, PMFBY — farmer-specific help</div>
+              </div>
+            </div>
+            <div className="support-item" onClick={() => {
+              closePanel();
+              setShowProfileEdit(true);
+            }}>
+              <span className="support-icon">👤</span>
+              <div>
+                <div className="support-label">Edit Profile</div>
+                <div className="support-desc">Update your financial details manually</div>
               </div>
             </div>
             <div className="support-item" onClick={() => {
@@ -1134,7 +1234,13 @@ export default function VoiceHub() {
                   </svg>
                   Play
                 </button>
-                <button className="sheet-btn" onClick={() => { setShowResponse(false); setTranscript(""); }}>
+                <button className="sheet-btn" style={{ background: "rgba(229,62,62,0.1)", color: "var(--red)" }} onClick={() => stopSpeaking()}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="6" width="12" height="12" />
+                  </svg>
+                  Stop
+                </button>
+                <button className="sheet-btn" onClick={() => { setShowResponse(false); setTranscript(""); stopSpeaking(); }}>
                   Dismiss
                 </button>
                 <button className="sheet-btn" onClick={() => { setShowResponse(false); startListening(); }}>
@@ -1145,6 +1251,15 @@ export default function VoiceHub() {
           )}
         </div>
       </div>
+      
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* ── Profile Edit Overlay ── */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      {showProfileEdit && (
+        <div className="onboard-shell" style={{ zIndex: 10000, position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.8)" }}>
+          {profileForm}
+        </div>
+      )}
     </div>
   );
 }

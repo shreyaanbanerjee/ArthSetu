@@ -107,3 +107,10 @@ async def update_profile(user_id: str, request: ProfileUpdateRequest) -> dict[st
 async def read_session(user_id: str) -> dict[str, Any]:
     """Read latest session."""
     return get_latest_session(user_id)
+
+
+@app.get("/api/v1/history/{user_id}")
+async def read_history(user_id: str) -> list[dict[str, Any]]:
+    """Read full conversation history."""
+    from core.memory import get_full_history
+    return get_full_history(user_id)
