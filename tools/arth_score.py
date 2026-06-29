@@ -21,32 +21,38 @@ def calculate_arth_score(profile: dict[str, Any], latest_state: dict[str, Any] |
     # 1. Cashflow Stability (0-20): Based on income vs expenses.
     if income == 0 and expenses == 0:
         stability = 5.0 # Unknown baseline
+    elif income == 0 and expenses > 0:
+        stability = 2.0 # Burning cash with no income
     else:
         savings_rate = ((income - expenses) / income * 100) if income > 0 else 0
-        stability = min(20.0, max(0.0, 10.0 + (savings_rate / 5.0)))
+        stability = min(20.0, max(0.0, 5.0 + (savings_rate / 2.0)))
         
     # 2. Risk Protection (0-20): Based on emergency fund ratio + banking
     if expenses > 0:
         months_saved = emergency / expenses
+    elif emergency > 0:
+        months_saved = 6 # if they have emergency but 0 expenses
     else:
         months_saved = 0
-    protection = min(20.0, (months_saved * 5.0) + (5.0 if has_bank else 0.0))
+    protection = min(20.0, (months_saved * 3.0) + (3.0 if has_bank else 0.0))
     if emergency == 0 and not has_bank:
         protection = 2.0 # Baseline
 
     # 3. Debt Health (0-20): Based on Debt-to-Income (DTI) ratio
     if income == 0 and debt_emi == 0:
-        debt_health = 10.0 # Unknown baseline
+        debt_health = 10.0 # No debt, but no income
+    elif income == 0 and debt_emi > 0:
+        debt_health = 0.0 # Debt with no income
     else:
-        dti = (debt_emi / income) if income > 0 else 1.0 # 100% DTI if no income but has debt
-        health_score = 20.0 - (dti * 40.0) # 50% DTI = 0 points
+        dti = (debt_emi / income) if income > 0 else 1.0
+        health_score = 20.0 - (dti * 50.0) # 40% DTI = 0 points
         debt_health = max(0.0, health_score - (5.0 if has_informal_debt else 0.0))
         
     # 4. Financial Awareness (0-20): Based on how much profile info they've shared in chat
     fields_to_check = ["monthly_income_inr", "monthly_expenses_inr", "emergency_fund_inr", 
                        "monthly_debt_emi_inr", "occupation", "has_bank_account", "age"]
-    fields_filled = sum(1 for k in fields_to_check if k in profile)
-    awareness = min(20.0, (fields_filled * 2.5) + 5.0) # Starts at 5, maxes at 20 as they chat
+    fields_filled = sum(1 for k in fields_to_check if profile.get(k))
+    awareness = min(20.0, (fields_filled * 2.0))
     
     # Scams reduce awareness temporarily
     scam_detected = bool((latest_state or {}).get("scam_detected", False))
@@ -55,7 +61,7 @@ def calculate_arth_score(profile: dict[str, Any], latest_state: dict[str, Any] |
 
     # 5. Habit Progress (0-20): Based on active scheme matches and positive actions
     scheme_count = len((latest_state or {}).get("scheme_matches", []))
-    progress = min(20.0, 5.0 + (scheme_count * 3.0) + (5.0 if stability > 12.0 else 0.0))
+    progress = min(20.0, (scheme_count * 2.0) + (5.0 if stability > 10.0 else 0.0))
 
     dimensions = {
         "cashflow_stability": round(stability, 1),

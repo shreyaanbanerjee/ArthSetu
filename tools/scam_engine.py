@@ -39,6 +39,9 @@ SCAM_PATTERNS: list[dict[str, Any]] = [
     {"name": "merchant_refund_pin", "weight": 0.84, "regex": r"\b(refund|merchant)\b.*\b(upi pin|otp)\b"},
     {"name": "card_limit_increase", "weight": 0.7, "regex": r"\b(credit card|limit)\b.*\b(increase|upgrade)\b.*https?://"},
     {"name": "emi_moratorium_fee", "weight": 0.68, "regex": r"\b(emi|loan)\b.*\b(moratorium|holiday)\b.*\b(fee|charge)\b"},
+    {"name": "lucky_draw_aggressive", "weight": 0.85, "regex": r"\b(lucky draw|win|jackpot|free gift|मुफ्त उपहार)\b.*\b(claim|click|contact|संपर्क)\b"},
+    {"name": "urgent_action_phishing", "weight": 0.82, "regex": r"\b(urgent action required|account suspended|deactivated|within 24 hours)\b.*https?://"},
+    {"name": "unauthorized_login_scam", "weight": 0.78, "regex": r"\b(unauthorized login|unknown device|verify identity)\b.*\b(click|link|call|लिंक)\b"},
 ]
 
 

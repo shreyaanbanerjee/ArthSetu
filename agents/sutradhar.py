@@ -25,6 +25,7 @@ INTENT_LABELS = [
     "paisa_padhai",
     "myth",
     "saaf_bolna",
+    "pwa_link",
     "general",
 ]
 # We'll import json here to ensure it's available for classification/synthesis parsing
@@ -52,22 +53,58 @@ def sutradhar_node(state: dict[str, Any]) -> dict[str, Any]:
         state["intent"] = classification["intent"]
         state["emotional_register"] = classification["emotional_register"]
 
-    if agent_outputs:
+    if state.get("intent") == "pwa_link":
+        from config import FRONTEND_ORIGIN
+        lang = state.get("language", "en")
+        msg = (
+            f"अर्थसेतू ॲप येथे वापरा:\n{FRONTEND_ORIGIN}" if lang == "mr" 
+            else f"अर्थसेतु ऐप यहाँ उपयोग करें:\n{FRONTEND_ORIGIN}" if lang == "hi"
+            else f"You can access the ArthSetu App here:\n{FRONTEND_ORIGIN}"
+        )
+        state["final_response"] = msg
+    elif agent_outputs:
         state["final_response"] = _synthesize_with_llm(state) or _synthesize_locally(state)
     return state
 
 
-def _detect_language(text: str) -> str:
-    """Detect ISO language code with a safe fallback."""
-    try:
-        from langdetect import detect
+_lingua_detector = None
 
-        code = detect(text)
-        return code if code in LANGUAGE_MAP else DEFAULT_LANGUAGE
-    except Exception:
-        if re.search(r"[\u0900-\u097F]", text):
-            return "hi"
-        return "en" if re.search(r"[A-Za-z]", text) else DEFAULT_LANGUAGE
+def _get_lingua_detector():
+    global _lingua_detector
+    if _lingua_detector is None:
+        try:
+            from lingua import Language, LanguageDetectorBuilder
+            languages = [
+                Language.ENGLISH, Language.HINDI, Language.MARATHI, 
+                Language.BENGALI, Language.GUJARATI, Language.PUNJABI,
+                Language.TAMIL, Language.TELUGU, Language.URDU
+            ]
+            _lingua_detector = LanguageDetectorBuilder.from_languages(*languages).build()
+        except ImportError:
+            pass
+    return _lingua_detector
+
+def _detect_language(text: str) -> str:
+    """Detect ISO language code with lingua-language-detector (highly accurate)."""
+    import string
+    clean_text = text.strip().lower().strip(string.punctuation)
+    if clean_text in {"hi", "hello", "hey", "test", "pwa", "app"}:
+        return "en"
+        
+    detector = _get_lingua_detector()
+    if detector:
+        try:
+            lang = detector.detect_language_of(text)
+            if lang:
+                code = lang.iso_code_639_1.name.lower()
+                return code if code in LANGUAGE_MAP else DEFAULT_LANGUAGE
+        except Exception:
+            pass
+
+    # Fallback if lingua fails or is missing
+    if re.search(r"[\u0900-\u097F]", text):
+        return "hi"
+    return "en" if re.search(r"[A-Za-z]", text) else DEFAULT_LANGUAGE
 
 
 def _classify_with_llm(raw: str, detected_lang: str, profile: dict[str, Any]) -> dict[str, str] | None:
@@ -80,6 +117,7 @@ Detect language, classify intent from {INTENT_LABELS}, and detect emotional regi
 {user_persona}
 
 Analyze the message under the user's financial profile.
+CRITICAL: If the user explicitly asks to speak in a specific language (e.g. 'speak in Marathi', 'मराठीत बोला'), you MUST change the 'language' field to that language's ISO code (e.g. 'mr', 'hi', 'en', 'bn', 'gu', 'ta', 'te', 'pa', 'ur'). Do not just echo the language they typed in if they are requesting a switch.
 Return only valid JSON.
 """
 
@@ -134,6 +172,7 @@ def _classify_locally(raw: str, detected_lang: str) -> dict[str, str]:
         ("habit", ["habit", "nudge", "remind"]),
         ("paisa_padhai", ["learn", "explain", "samjhao", "what is"]),
         ("myth", ["myth", "true or false", "sach"]),
+        ("pwa_link", ["pwa", "app", "link", "show me the pwa"]),
     ]
     intent = "general"
     for label, words in keyword_intents:
@@ -154,20 +193,22 @@ def _synthesize_with_llm(state: dict[str, Any]) -> str | None:
     user_persona = format_user_persona(profile)
 
     system_prompt = f"""You are Sutradhar, the orchestrator of ArthSetu, India's AI financial guardian.
-Synthesize all agent outputs into one friendly, extremely useful final response. Never recommend specific financial products by brand.
+Your PRIMARY GOAL is to directly answer the user's question or address their input. Never recommend specific financial products by brand.
 
 {user_persona}
 
 For final answers:
-- Start with a reassuring human sentence.
-- Give the verdict first if fraud risk exists.
-- Explain why in simple words.
-- Give 2-4 concrete next steps.
-- If useful, mention score/scheme/document findings.
-- Do not add generic scam warnings when no scam is detected and the user did not ask about fraud/security.
+- **Directly answer the user's question first.** If they ask about KYC, explain KYC. If they ask about a scheme, explain the scheme. Do NOT ignore their question.
+- ONLY mention fraud/scam if a scam is actually detected or the user asked about it. Otherwise, stay completely silent about fraud/security.
+- ONLY provide deep financial analysis or Arth Score details if the user explicitly asked about their finances, budget, or score.
+- Do NOT pad your answer with unsolicited advice about their budget or emergency fund unless they asked for it.
+- Give 2-4 concrete next steps only if appropriate for the query.
+- State the Arth Score exactly out of 100 as provided (e.g., 70/100) ONLY if relevant to the query.
 - Keep it WhatsApp-friendly: short paragraphs, no jargon, no long tables.
 - Synthesize based on the user's specific context (e.g. adjust tone/actions if they are a low-income farmer or have high debt).
-- If language is mr, answer in natural Marathi. If hi, answer in Hindi. If en, answer in English. If kn, answer in Kannada. If bn, answer in Bengali. If ta, answer in Tamil.
+- For any Indian regional language (like mr, hi, bn, gu, pa, ta, te, ur, kn, ml), you MUST output the response in its native authentic script (e.g., Devanagari, Bengali, Tamil, etc.).
+- Do NOT use the Latin/English alphabet to write out regional languages (no transliteration/Hinglish).
+- If language is en (English), answer in English.
 Return only valid JSON with key 'synthesis' only.
 """
 
@@ -176,7 +217,7 @@ Return only valid JSON with key 'synthesis' only.
         f"Emotion: {state.get('emotional_register', 'calm')}\n"
         f"User message: {state.get('raw_input', '')}\n"
         f"Agent outputs: {json.dumps(state.get('agent_outputs', {}), ensure_ascii=False)}\n"
-        "Return JSON with key synthesis only. Make the synthesis friendly and practical. Use the requested language exactly."
+        "Return JSON with key synthesis only. Make the synthesis friendly and practical. Use the requested language exactly. Do NOT mention agent findings if they are irrelevant to the user message."
     )
 
     try:

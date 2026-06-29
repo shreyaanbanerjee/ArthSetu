@@ -1,0 +1,8 @@
+define bot refuse to hallucinate
+  "I apologize, but I do not have enough specific information to answer that question accurately right now."
+
+define flow self check hallucination
+  $is_hallucination = execute self_check_hallucination
+  if $is_hallucination == "yes"
+    bot refuse to hallucinate
+    stop

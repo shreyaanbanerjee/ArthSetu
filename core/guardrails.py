@@ -30,36 +30,58 @@ def guardrail_node(state: dict[str, Any]) -> dict[str, Any]:
     return state
 
 
-def _ollama_guardrail(response_text: str) -> str | None:
-    """Use LlamaGuard through Ollama when available."""
-    try:
-        result = requests.post(
-            f"{OLLAMA_HOST}/api/chat",
-            json={
-                "model": "llama-guard3:8b",
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": (
-                            "Check this financial advice response for violations: "
-                            f"{response_text}\nViolation types: {GUARDRAIL_VIOLATIONS}\n"
-                            'Return JSON: {"safe": bool, "violation": str or null, "cleaned_response": str}'
-                        ),
-                    }
-                ],
-                "stream": False,
-                "format": "json",
-                "options": {"temperature": 0.0},
-            },
-            timeout=8,
-        )
-        result.raise_for_status()
-        parsed = json.loads(result.json().get("message", {}).get("content", "{}"))
-        if parsed.get("safe", True):
-            return response_text
-        return parsed.get("cleaned_response") or _rule_clean(response_text)
-    except Exception:
-        return None
+import asyncio
+import os
+from pathlib import Path
+
+_rails_app = None
+
+import json
+from config import GEMINI_API_KEY
+
+def guardrail_node(state: dict[str, Any]) -> dict[str, Any]:
+    """Clean final response before delivery using Gemini as a guardrail."""
+    response_text = state.get("final_response", "")
+    if not response_text:
+        return state
+
+    if GEMINI_API_KEY:
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=GEMINI_API_KEY)
+            # Use Gemini model explicitly since VIVEK_MODEL is overridden in .env
+            model = genai.GenerativeModel("gemini-2.5-flash")
+            
+            prompt = f"""You are a strict Hallucination Guardrail. 
+User Profile Context: {state.get('user_profile', {})}
+Bot Response: {response_text}
+
+Does the Bot Response invent financial facts, advice, or claims that contradict the User Profile Context?
+(NOTE: Links to the ArthSetu App, PWA, or IP addresses are valid system messages and are NEVER hallucinations).
+
+If YES, auto-correct the response to be safe and accurate, removing the hallucinated parts.
+If NO, just return the exact same Bot Response.
+
+Respond ONLY with a JSON object: {{"hallucinated": bool, "corrected_response": "..."}}"""
+
+            res = model.generate_content(prompt)
+            text = res.text.strip()
+            if text.startswith("```"):
+                lines = text.splitlines()
+                if lines[0].startswith("```"): lines = lines[1:]
+                if lines and lines[-1].startswith("```"): lines = lines[:-1]
+                text = "\n".join(lines).strip()
+                
+            parsed = json.loads(text)
+            if parsed.get("hallucinated"):
+                response_text = parsed.get("corrected_response", response_text)
+        except Exception as e:
+            print(f"Gemini Guardrail check failed: {e}")
+
+    # Fallback deterministic rules
+    cleaned = _rule_clean(response_text)
+    state["final_response"] = cleaned
+    return state
 
 
 def _rule_clean(response_text: str) -> str:

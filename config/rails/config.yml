@@ -1,0 +1,24 @@
+models:
+  - type: main
+    engine: google_genai
+    model: gemini-2.5-flash
+    parameters:
+      temperature: 0.1
+
+rails:
+  output:
+    flows:
+      - self check hallucination
+
+prompts:
+  - task: self_check_hallucination
+    content: |
+      You are given a context and a bot response. Your task is to determine whether the bot response is hallucinated or contradicts the provided context.
+      
+      Context:
+      {{ context }}
+      
+      Bot Response:
+      {{ bot_response }}
+      
+      If the response contradicts the context or invents information not present in the context, output "yes". Otherwise, output "no".

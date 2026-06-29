@@ -24,7 +24,7 @@ SUTRADHAR_MODEL: Final[str] = os.getenv("SUTRADHAR_MODEL", "llama-3.1-70b-versat
 PRAHARI_MODEL: Final[str] = os.getenv("PRAHARI_MODEL", "llama-3.1-8b-instant")
 BODHAK_MODEL: Final[str] = os.getenv("BODHAK_MODEL", "llama3.1:8b")
 SHILPI_MODEL: Final[str] = os.getenv("SHILPI_MODEL", "llama-3.1-70b-versatile")
-VIVEK_MODEL: Final[str] = os.getenv("VIVEK_MODEL", "gemini-1.5-flash")
+VIVEK_MODEL: Final[str] = os.getenv("VIVEK_MODEL", "gemini-2.5-flash")
 
 # Infrastructure
 REDIS_URL: Final[str] = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -77,5 +77,5 @@ LANGUAGE_MAP: Final[dict[str, str]] = {
 SESSION_TTL_SECONDS: Final[int] = int(os.getenv("SESSION_TTL_SECONDS", "1800"))
 SCAM_CONFIDENCE_THRESHOLD: Final[float] = float(os.getenv("SCAM_CONFIDENCE_THRESHOLD", "0.72"))
 APR_WARNING_THRESHOLD: Final[float] = float(os.getenv("APR_WARNING_THRESHOLD", "36.0"))
-DEFAULT_LANGUAGE: Final[str] = os.getenv("DEFAULT_LANGUAGE", "hi")
+DEFAULT_LANGUAGE: Final[str] = os.getenv("DEFAULT_LANGUAGE", "en")
 MAX_WHATSAPP_REPLY_CHARS: Final[int] = int(os.getenv("MAX_WHATSAPP_REPLY_CHARS", "1500"))

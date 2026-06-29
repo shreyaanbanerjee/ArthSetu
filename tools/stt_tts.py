@@ -11,10 +11,10 @@ import httpx
 from config import BHASHINI_API_KEY, BHASHINI_PIPELINE_URL, BHASHINI_USER_ID
 
 
-def transcribe_audio_bhashini(audio_bytes: bytes, language: str = "hi") -> str:
+def transcribe_audio_bhashini(audio_bytes: bytes, language: str = "hi") -> tuple[str, str | None]:
     """Transcribe audio through Bhashini when configured, otherwise local Whisper."""
     if not audio_bytes:
-        return ""
+        return "", None
     if BHASHINI_API_KEY and BHASHINI_PIPELINE_URL:
         try:
             payload = {
@@ -32,14 +32,17 @@ def transcribe_audio_bhashini(audio_bytes: bytes, language: str = "hi") -> str:
             response = httpx.post(BHASHINI_PIPELINE_URL, json=payload, headers=headers, timeout=45)
             response.raise_for_status()
             data = response.json()
-            return _extract_bhashini_text(data)
+            return _extract_bhashini_text(data), language
         except Exception:
             pass
     return transcribe_audio_local(audio_bytes, language)
 
 
-def transcribe_audio_local(audio_bytes: bytes, language: str = "hi") -> str:
-    """Transcribe audio using faster-whisper when installed."""
+def transcribe_audio_local(audio_bytes: bytes, language: str = "hi") -> tuple[str, str | None]:
+    """Transcribe audio using faster-whisper (open-source) and detect language from text."""
+    import logging
+    logger = logging.getLogger("arthsetu.stt")
+    
     try:
         from faster_whisper import WhisperModel
 
@@ -47,13 +50,37 @@ def transcribe_audio_local(audio_bytes: bytes, language: str = "hi") -> str:
             tmp.write(audio_bytes)
             tmp_path = Path(tmp.name)
         try:
+            # We use base, but it's prone to audio-level language misclassification.
             model = WhisperModel("base", device="cpu", compute_type="int8")
-            segments, _ = model.transcribe(str(tmp_path), language=language if language != "en" else "en")
-            return " ".join(segment.text.strip() for segment in segments).strip()
+            segments, info = model.transcribe(str(tmp_path), language=None)
+            text = " ".join(segment.text.strip() for segment in segments).strip()
+            
+            # The crucial fix: Ignore info.language (which hallucinates 'ur' for Marathi)
+            # Detect language directly from the transcribed text script/words instead!
+            from agents.sutradhar import _detect_language
+            detected_lang = _detect_language(text) if text else "hi"
+            
+            return text, detected_lang
         finally:
             tmp_path.unlink(missing_ok=True)
-    except Exception:
-        return ""
+    except Exception as e:
+        logger.warning(f"faster-whisper failed: {e}. Falling back to Gemini.")
+        from config import GEMINI_API_KEY
+        if GEMINI_API_KEY:
+            try:
+                import google.generativeai as genai
+                genai.configure(api_key=GEMINI_API_KEY)
+                model = genai.GenerativeModel('gemini-2.5-flash')
+                response = model.generate_content([
+                    "You are a strict transcriber. Transcribe the following audio EXACTLY as spoken. Do NOT translate it to English or any other language. If the audio is in Marathi, output Marathi text in Devanagari script. If Hindi, output Hindi. Output ONLY the transcription, absolutely nothing else.",
+                    {"mime_type": "audio/ogg", "data": audio_bytes}
+                ])
+                text_out = response.text.strip()
+                from agents.sutradhar import _detect_language
+                return text_out, _detect_language(text_out)
+            except Exception as gemini_err:
+                logger.error(f"Gemini fallback failed: {gemini_err}")
+        return "", None
 
 
 def synthesise_speech_bhashini(text: str, language: str = "hi") -> bytes:

@@ -44,6 +44,7 @@ def _plan_with_llm(raw: str, profile: dict[str, Any], schemes: list[dict[str, An
 {schemes_context}
 
 Create a budget plan and action roadmap. Always respond in target language '{language}'. Avoid complex jargon.
+CRITICAL INSTRUCTION: You MUST ONLY recommend welfare schemes that are explicitly listed in the 'Matched Government Schemes' context above. If the context says 'No specific government welfare schemes matched', you MUST leave the `schemes_to_apply` list completely empty. Do NOT invent, guess, or hallucinate schemes like PM Yojna unless they are in the match list.
 
 You must output ONLY a valid JSON object matching this structure:
 {{

@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from config import DATABASE_URL, REDIS_URL, SESSION_TTL_SECONDS
+from config import DATABASE_URL, DEFAULT_LANGUAGE, REDIS_URL, SESSION_TTL_SECONDS
 
 
 DATA_DIR = Path(".arthsetu_data")
@@ -14,7 +14,7 @@ PROFILE_FILE = DATA_DIR / "profiles.json"
 SESSION_FILE = DATA_DIR / "sessions.json"
 
 DEFAULT_PROFILE: dict[str, Any] = {
-    "language": "hi",
+    "language": DEFAULT_LANGUAGE,
     "occupation": "",
     "monthly_income_inr": 0,
     "monthly_expenses_inr": 0,

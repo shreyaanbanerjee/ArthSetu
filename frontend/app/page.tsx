@@ -240,6 +240,9 @@ export default function VoiceHub() {
     id: string; type: "scam" | "score" | "scheme" | "info"; label: string; text: string; audio?: string;
   }>>([]);
 
+  // Voice prefix reference (for quick actions)
+  const voicePrefixRef = useRef<string>("");
+
   // Swipe gesture state
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const mouseStart = useRef<{ x: number; y: number } | null>(null);
@@ -380,7 +383,7 @@ export default function VoiceHub() {
   }
 
   // ─── Voice Input ─────────────────────────────────────────────────────────────
-  const startListening = useCallback(() => {
+  const startListening = useCallback((prefix?: string) => {
     if (orbState !== "idle") return;
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) {
@@ -388,6 +391,12 @@ export default function VoiceHub() {
       setShowResponse(false);
       return;
     }
+    
+    // Set prefix if provided
+    if (prefix) {
+      voicePrefixRef.current = prefix;
+    }
+
     const r = new SR();
     const speechLang: Record<string, string> = {
       hi: "hi-IN", en: "en-IN", mr: "mr-IN", kn: "kn-IN", ta: "ta-IN", te: "te-IN", bn: "bn-IN", gu: "gu-IN", pa: "pa-IN",
@@ -395,16 +404,29 @@ export default function VoiceHub() {
     r.lang = speechLang[language] || "hi-IN";
     r.interimResults = true;
     r.maxAlternatives = 1;
-    r.onstart = () => { setOrbState("listening"); setTranscript(""); };
-    r.onend = () => { setOrbState(current => current === "listening" ? "idle" : current); };
-    r.onerror = () => { setOrbState("idle"); setTranscript("Couldn't hear clearly. Tap orb to try again."); };
+    r.onstart = () => { 
+      setOrbState("listening"); 
+      setTranscript(voicePrefixRef.current ? "Listening... (Context: " + voicePrefixRef.current + ")" : ""); 
+    };
+    r.onend = () => { 
+      setOrbState(current => current === "listening" ? "idle" : current); 
+      // Clear prefix if we stopped without finalizing
+      if (orbState === "listening") voicePrefixRef.current = "";
+    };
+    r.onerror = () => { 
+      setOrbState("idle"); 
+      setTranscript("Couldn't hear clearly. Tap orb to try again."); 
+      voicePrefixRef.current = "";
+    };
     r.onresult = (e: any) => {
       const t = e.results[e.results.length - 1][0].transcript;
-      setTranscript(t);
+      setTranscript(voicePrefixRef.current ? voicePrefixRef.current + t : t);
       if (e.results[e.results.length - 1].isFinal && t.trim()) {
         r.stop();
         setOrbState("thinking");
-        callAPI(t.trim(), { ...profile, language });
+        const finalQuery = voicePrefixRef.current ? voicePrefixRef.current + t.trim() : t.trim();
+        callAPI(finalQuery, { ...profile, language });
+        voicePrefixRef.current = ""; // Clear after sending
       }
     };
     r.start();
@@ -972,21 +994,30 @@ export default function VoiceHub() {
           </div>
 
           <div className="support-list">
-            <div className="support-item" onClick={() => { closePanel(); callAPI("Help me. I think I am being scammed right now. Someone is asking for my OTP."); }}>
+            <div className="support-item" onClick={() => {
+              closePanel();
+              startListening("I think I am being scammed. Here is what happened: ");
+            }}>
               <span className="support-icon">🚨</span>
               <div>
                 <div className="support-label">Emergency Scam Alert</div>
                 <div className="support-desc">Immediate fraud help — Prahari activates instantly</div>
               </div>
             </div>
-            <div className="support-item" onClick={() => { closePanel(); callAPI("I want to report a financial fraud to RBI Sachet. Help me file a complaint."); }}>
+            <div className="support-item" onClick={() => {
+              closePanel();
+              startListening("I want to report a financial fraud. Here are the details: ");
+            }}>
               <span className="support-icon">📋</span>
               <div>
                 <div className="support-label">Report to RBI Sachet</div>
                 <div className="support-desc">File a fraud complaint with regulatory body</div>
               </div>
             </div>
-            <div className="support-item" onClick={() => { closePanel(); callAPI("I am a farmer and need help with PM-Kisan and crop insurance schemes."); }}>
+            <div className="support-item" onClick={() => {
+              closePanel();
+              startListening("I am a farmer and need help with: ");
+            }}>
               <span className="support-icon">🌾</span>
               <div>
                 <div className="support-label">Kisan Support</div>

@@ -15,9 +15,14 @@ def prahari_node(state: dict[str, Any]) -> dict[str, Any]:
     raw = state.get("raw_input", "")
     language = state.get("language", "hi")
     profile = state.get("user_profile", {})
-    triage = _llm_triage(raw, profile) or {"scam_probability": 0.0, "scam_type": None, "red_flags": []}
-    rule_result = run_scam_detection(raw)
-    final_confidence = max(float(triage.get("scam_probability") or 0.0), float(rule_result["confidence"]))
+    if len(raw.strip()) < 10:
+        triage = {"scam_probability": 0.0, "scam_type": None, "red_flags": []}
+        rule_result = {"confidence": 0.0, "matched_pattern": None, "flags": []}
+    else:
+        triage = _llm_triage(raw, profile) or {"scam_probability": 0.0, "scam_type": None, "red_flags": []}
+        rule_result = run_scam_detection(raw)
+        
+    final_confidence = max(float(triage.get("scam_probability") or 0.0), float(rule_result.get("confidence") or 0.0))
     scam_detected = final_confidence >= SCAM_CONFIDENCE_THRESHOLD
 
     terms = extract_loan_terms(raw)
@@ -56,6 +61,8 @@ def _llm_triage(raw: str, profile: dict[str, Any]) -> dict[str, Any] | None:
 {user_persona}
 
 Consider how this potential scam might target someone in their financial situation (e.g. predatory loans targeting low-income workers, fake subsidies/welfare schemes, OTP/UPI frauds).
+
+CRITICAL INSTRUCTION: Do NOT flag a message as a scam simply because it contains poor grammar, weird formatting, or is written in a regional Indian language (e.g. Marathi, Hindi, Bengali) or transliterated script. Audio transcriptions naturally have grammar errors or unusual vocabulary—this is normal and NOT a scam indicator. Only flag actual financial fraud hooks (e.g., asking for OTP, fake lotteries, urgent payment demands).
 
 You must output ONLY a valid JSON object with the following structure:
 {{
