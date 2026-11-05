@@ -1,18 +1,7 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// ArthSetu — Financial Constitution (Cedar Policy File)
-// Evaluated locally via cedar-policy Python SDK in < 1ms, zero API calls.
-// This is the "Financial Firewall" — every action passes through these rules.
-//
-// Actions Covered:
-//   1. InitiateUPILitePayment   — small UPI transfer
-//   2. ApplyForLoan             — loan application
-//   3. ShareKYCDocument         — share Aadhaar/PAN with third party
-//   4. ClaimGovernmentScheme    — apply for welfare scheme
-//   5. ApproveHighValueTransfer — transfer > ₹5,000
-// ═══════════════════════════════════════════════════════════════════════════
+// Financial action authorization policies for ArthSetu.
+// Evaluated deterministically before sensitive financial operations.
 
-// ─── Rule 1: Block UPI payment when scam threat is CRITICAL ───────────────
-// "If Prahari detected a critical threat, the payment MUST not go through."
+// Rule 1: Forbid UPI payments if a critical fraud threat was detected
 forbid (
   principal,
   action == Action::"InitiateUPILitePayment",
@@ -22,8 +11,7 @@ when {
   context.threat_level == "CRITICAL"
 };
 
-// ─── Rule 2: Block loan applications with dangerous debt + low Arth Score ─
-// "Protect vulnerable users from predatory loans when they are already in distress."
+// Rule 2: Forbid loan applications for accounts under acute debt distress
 forbid (
   principal is User,
   action == Action::"ApplyForLoan",
@@ -34,8 +22,7 @@ when {
   context.debt_ratio > 60
 };
 
-// ─── Rule 3: Block KYC sharing with unverified requestors ─────────────────
-// "Never share Aadhaar or PAN with anyone except a verified, regulated bank."
+// Rule 3: Forbid sharing KYC documents with unverified third parties
 forbid (
   principal,
   action == Action::"ShareKYCDocument",
@@ -46,16 +33,14 @@ unless {
   context.requestor_type == "government_portal"
 };
 
-// ─── Rule 4: Government scheme applications are ALWAYS permitted ──────────
-// "Never block access to welfare that users are entitled to."
+// Rule 4: Unconditionally permit government scheme discovery and claims
 permit (
   principal,
   action == Action::"ClaimGovernmentScheme",
   resource
 );
 
-// ─── Rule 5: Block high-value transfers for low-score users ───────────────
-// "Protect users with Arth Score < 40 from making large impulsive transfers."
+// Rule 5: Block high-value transfers during active high-threat warnings for fragile accounts
 forbid (
   principal is User,
   action == Action::"ApproveHighValueTransfer",
@@ -67,7 +52,7 @@ when {
   context.threat_level != "SAFE"
 };
 
-// ─── Default: Permit all other actions ────────────────────────────────────
+// Default policy: permit actions that are not explicitly forbidden
 permit (
   principal,
   action,

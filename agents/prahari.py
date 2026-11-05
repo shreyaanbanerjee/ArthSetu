@@ -33,7 +33,7 @@ def prahari_node(state: dict[str, Any]) -> dict[str, Any]:
     months = _int_or_none(triage.get("period_months")) or terms.get("period_months")
     apr_info = compute_true_apr(float(principal), float(repayment), int(months)) if principal and repayment and months else None
 
-    # ── Cedar Financial Firewall evaluation ───────────────────────────────────
+    # Evaluate Cedar authorization policy against Prahari findings
     prahari_output_for_cedar = {
         "scam_detected": scam_detected,
         "confidence": final_confidence,
@@ -41,10 +41,10 @@ def prahari_node(state: dict[str, Any]) -> dict[str, Any]:
     }
     cedar_decision = evaluate_from_prahari_output(prahari_output_for_cedar, profile)
 
-    # ── Collective ScamNetwork intelligence lookup ─────────────────────────────
+    # Check scam network cache for known patterns
     collective = check_scam_network(raw)
 
-    # ── SQS push if scam detected (async Lambda processing) ────────────────────
+    # Forward scam reports to SQS for downstream processing
     sqs_message_id = None
     if scam_detected:
         all_flags = list(dict.fromkeys([*(triage.get("red_flags") or []), *rule_result.get("flags", [])]))
@@ -75,7 +75,6 @@ def prahari_node(state: dict[str, Any]) -> dict[str, Any]:
         "apr_info": apr_info,
         "sachet_reference": sachet_reference,
         "verdict": "SCAM" if scam_detected else "CLEAR",
-        # ── New AWS-powered fields ──────────────────────────────────────────────
         "cedar_decision": cedar_decision.to_dict(),
         "cedar_allowed": cedar_decision.allowed,
         "cedar_policy_id": cedar_decision.policy_id,

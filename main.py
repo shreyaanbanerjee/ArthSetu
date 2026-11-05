@@ -30,7 +30,7 @@ from core.memory import get_latest_session, get_user_profile, update_session, up
 graph = build_graph()
 
 
-# ─── Rate Limiter (Token Bucket) ────────────────────────────────────────────
+# Rate Limiter (Token Bucket)
 
 class RateLimitMiddleware:
     """Simple in-memory token bucket rate limiter per client IP.
@@ -79,7 +79,7 @@ class RateLimitMiddleware:
         await self.app(scope, receive, send)
 
 
-# ─── Security Headers Middleware ─────────────────────────────────────────────
+# Security Headers Middleware
 
 class SecurityHeadersMiddleware:
     """Inject production security headers into every response."""
@@ -112,7 +112,7 @@ class SecurityHeadersMiddleware:
         await self.app(scope, receive, send_with_headers)
 
 
-# ─── Route Handlers ──────────────────────────────────────────────────────────
+# Route Handlers
 
 async def root_handler(request: Request) -> JSONResponse:
     return JSONResponse({"message": "ArthSetu - Paisa Samajho, Zindagi Badlo"})
@@ -170,15 +170,10 @@ async def chat_handler(request: Request) -> JSONResponse:
     return JSONResponse(result)
 
 
-# ─── SSE Streaming Chat Endpoint ─────────────────────────────────────────────
+# Server-Sent Events streaming chat handler
 
 async def chat_stream_handler(request: Request) -> StreamingResponse:
-    """Server-Sent Events streaming endpoint.
-    
-    Streams real-time agent status updates as each agent in the graph fires,
-    ending with the final response. This makes the UI feel alive instead of
-    showing a loading spinner for 3-5 seconds.
-    """
+    """Stream real-time agent progression events and the final synthesized response."""
     try:
         body = await request.json()
     except Exception:
@@ -262,10 +257,10 @@ async def chat_stream_handler(request: Request) -> StreamingResponse:
             # Step 4: Run selected agents
             agent_names = route_after_sutradhar(state)
             agent_labels = {
-                "prahari": "🛡️ Scanning for scams...",
-                "bodhak": "📄 Decoding document...",
-                "shilpi": "💰 Building your financial plan...",
-                "vivek": "📊 Calculating Arth Score...",
+                "prahari": "Scanning for scams...",
+                "bodhak": "Decoding document...",
+                "shilpi": "Building your financial plan...",
+                "vivek": "Calculating Arth Score...",
             }
             agent_fns = {
                 "prahari": prahari_node,
@@ -284,7 +279,7 @@ async def chat_stream_handler(request: Request) -> StreamingResponse:
                 yield sse_event("agent_status", {"agent": agent_name, "status": "done"})
 
             # Step 5: Synthesize
-            yield sse_event("agent_status", {"agent": "sutradhar_synthesis", "status": "running", "label": "✨ Preparing your response..."})
+            yield sse_event("agent_status", {"agent": "sutradhar_synthesis", "status": "running", "label": "Preparing your response..."})
             state_result = sutradhar_node(state)
             state.update(state_result)
             yield sse_event("agent_status", {"agent": "sutradhar_synthesis", "status": "done"})
@@ -320,26 +315,19 @@ async def chat_stream_handler(request: Request) -> StreamingResponse:
     )
 
 
-# ─── Scam Intelligence Network API ──────────────────────────────────────────
+# Scam Intelligence Network API
 
 async def scam_network_stats_handler(request: Request) -> JSONResponse:
-    """Return aggregated Scam Intelligence Network statistics.
-    
-    Queries the local scam data and DynamoDB ScamNetwork table for:
-    - Total scam reports processed
-    - Top scam types detected
-    - Recent scam alerts
-    - Confidence distribution
-    """
+    """Return aggregated scam network statistics."""
     from tools.aws_tools import get_scam_network_stats
     stats = get_scam_network_stats()
     return JSONResponse(stats)
 
 
-# ─── Cedar Audit Trail API ──────────────────────────────────────────────────
+# Cedar Audit Trail API
 
 async def cedar_audit_handler(request: Request) -> JSONResponse:
-    """Return the Cedar policy audit trail with full decision history."""
+    """Return the Cedar policy audit trail with decision history."""
     from core.cedar_engine import get_audit_log
     user_id = request.query_params.get("user_id")
     limit = int(request.query_params.get("limit", "50"))
@@ -348,12 +336,12 @@ async def cedar_audit_handler(request: Request) -> JSONResponse:
 
 
 async def cedar_stats_handler(request: Request) -> JSONResponse:
-    """Return aggregated Cedar policy statistics for the dashboard."""
+    """Return aggregated Cedar policy statistics."""
     from core.cedar_engine import get_audit_stats
     return JSONResponse(get_audit_stats())
 
 
-# ─── Profile & Session Handlers ─────────────────────────────────────────────
+# Profile & Session Handlers
 
 async def get_profile_handler(request: Request) -> JSONResponse:
     user_id = request.path_params.get("user_id", "demo-user")
@@ -381,7 +369,7 @@ async def get_history_handler(request: Request) -> JSONResponse:
     return JSONResponse(get_full_history(user_id))
 
 
-# ─── System Status Endpoint ─────────────────────────────────────────────────
+# Automated AI Evaluation & System Endpoints
 
 async def eval_validate_handler(request: Request) -> JSONResponse:
     """Validate any user query and assistant response against the automated AI evaluation rubric."""
@@ -496,7 +484,7 @@ async def system_status_handler(request: Request) -> JSONResponse:
     })
 
 
-# ─── Routes ──────────────────────────────────────────────────────────────────
+# Application Routes
 
 routes = [
     Route("/", root_handler, methods=["GET"]),

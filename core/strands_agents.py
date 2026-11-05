@@ -26,8 +26,7 @@ from core.cedar_engine import evaluate_from_prahari_output
 logger = logging.getLogger("arthsetu.strands")
 
 
-# ─── Strands Tool Decorator ───────────────────────────────────────────────────
-# Mirrors the @tool decorator from strands-agents SDK
+# Tool decorator for agent functions
 
 def tool(description: str):
     """Decorator to register a function as a Strands agent tool."""
@@ -39,14 +38,10 @@ def tool(description: str):
     return decorator
 
 
-# ─── Base Agent (Strands-compatible interface) ─────────────────────────────────
+# Base Agent definition
 
 class StrandsAgent:
-    """
-    Base class implementing the AWS Strands Agent interface.
-    Uses Groq as the LLM backend via direct API calls.
-    Swap `_call_llm` with OllamaModel/BedrockModel for other providers.
-    """
+    """Base class for agent dispatch and tool registration."""
 
     name: str = "Agent"
     model: str = "llama-3.1-8b-instant"
@@ -87,17 +82,14 @@ class StrandsAgent:
         ]
 
 
-# ─── Sutradhar: Orchestrator Agent ───────────────────────────────────────────
+# Sutradhar: Orchestrator Agent
 
 class SutradharAgent(StrandsAgent):
-    """
-    Sutradhar — the master orchestrator.
-    Receives user transcript, detects language + intent, delegates to Prahari and Shilpi.
-    """
+    """Orchestrator: parses user input and delegates to specialist agents."""
     name = "Sutradhar"
     model = SUTRADHAR_MODEL
     system_prompt = (
-        "You are Sutradhar, orchestrator of ArthSetu — India's AI financial guardian. "
+        "You are Sutradhar, the core orchestrator for ArthSetu. "
         "Classify the user's intent (scam_check, scheme, budget, plan, general), "
         "detect language (ISO code), and emotional register (calm, stressed, urgent, curious). "
         "Return JSON: {language, intent, emotional_register}."
@@ -138,14 +130,10 @@ class SutradharAgent(StrandsAgent):
         return state
 
 
-# ─── Prahari: Security Agent ───────────────────────────────────────────────────
+# Prahari: Security Agent
 
 class PrahariAgent(StrandsAgent):
-    """
-    Prahari — the fraud sentinel.
-    Tools: detect_otp_scam (regex), check_collective_scam_db, push_scam_report.
-    Cedar policy evaluator runs automatically on every analysis.
-    """
+    """Fraud sentinel agent evaluating messages for scams and security risks."""
     name = "Prahari"
     model = PRAHARI_MODEL
 
@@ -236,14 +224,10 @@ class PrahariAgent(StrandsAgent):
         }
 
 
-# ─── Shilpi: Scheme Matcher Agent ─────────────────────────────────────────────
+# Shilpi: Scheme Matcher Agent
 
 class ShilpiAgent(StrandsAgent):
-    """
-    Shilpi — the financial planner and scheme matcher.
-    Tool: search_scheme_genome — queries OpenSearch for matching government schemes.
-    Falls back to in-memory scheme matcher if OpenSearch is unavailable.
-    """
+    """Financial planner and welfare scheme matching agent."""
     name = "Shilpi"
     model = SHILPI_MODEL
 

@@ -16,9 +16,7 @@ from typing import Any
 from config import GEMINI_API_KEY, MAX_WHATSAPP_REPLY_CHARS
 
 
-# ──────────────────────────────────────────────────────────────────────
-# Constants
-# ──────────────────────────────────────────────────────────────────────
+# Constants and regex definitions
 
 MAX_INPUT_CHARS = 2000
 
@@ -72,9 +70,7 @@ _DISCLAIMER_EN = (
 )
 
 
-# ──────────────────────────────────────────────────────────────────────
-# Layer 1 — Input Guardrails
-# ──────────────────────────────────────────────────────────────────────
+# Input sanitization and redaction
 
 def input_guardrail_node(state: dict[str, Any]) -> dict[str, Any]:
     """Sanitize user input before it reaches agents.
@@ -165,9 +161,7 @@ def _redact_pii(text: str) -> tuple[str, bool]:
     return text, found
 
 
-# ──────────────────────────────────────────────────────────────────────
-# Layer 2 — Output Guardrails
-# ──────────────────────────────────────────────────────────────────────
+# Output post-processing and disclaimer validation
 
 def output_guardrail_node(state: dict[str, Any]) -> dict[str, Any]:
     """Clean the final response before delivery."""

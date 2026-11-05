@@ -17,7 +17,7 @@ from typing import Any
 
 logger = logging.getLogger("arthsetu.aws_tools")
 
-# ─── Config ───────────────────────────────────────────────────────────────────
+# AWS and service configuration
 AWS_REGION = os.getenv("AWS_REGION", os.getenv("AWS_DEFAULT_REGION", "ap-south-1"))
 SQS_QUEUE_URL = os.getenv("SQS_QUEUE_URL", "")
 DYNAMODB_SCAM_TABLE = os.getenv("DYNAMODB_SCAM_TABLE", "ArthSetu-ScamReports")
@@ -60,7 +60,7 @@ def _get_opensearch():
     return _opensearch
 
 
-# ─── SQS: Push scam report ────────────────────────────────────────────────────
+# SQS queue publication
 
 def push_scam_to_sqs(
     scam_type: str,
@@ -109,7 +109,7 @@ def push_scam_to_sqs(
         return None
 
 
-# ─── DynamoDB: Query ScamNetwork (collective intelligence) ────────────────────
+# DynamoDB scam network queries
 
 def check_scam_network(text: str) -> dict[str, Any]:
     """
@@ -158,7 +158,7 @@ def check_scam_network(text: str) -> dict[str, Any]:
     }
 
 
-# ─── OpenSearch: Scheme search ────────────────────────────────────────────────
+# OpenSearch scheme search
 
 def search_opensearch_schemes(query: str, top_k: int = 5, profile: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     """
@@ -266,7 +266,7 @@ def ensure_opensearch_index() -> bool:
         return False
 
 
-# ─── Helpers ──────────────────────────────────────────────────────────────────
+# Fingerprint extraction helpers
 
 def _extract_fingerprints(text: str) -> dict[str, str]:
     """Extract phone numbers, UPI IDs, and URLs from text for fingerprinting."""
@@ -294,7 +294,7 @@ def _hash(value: str) -> str:
     return hashlib.sha256(value.strip().lower().encode()).hexdigest()[:16]
 
 
-# ─── Scam Intelligence Network Stats ────────────────────────────────────────
+# Scam network aggregate statistics
 
 def get_scam_network_stats() -> dict[str, Any]:
     """Aggregate Scam Intelligence Network statistics from local + DynamoDB.

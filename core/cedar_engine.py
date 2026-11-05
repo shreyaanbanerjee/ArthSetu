@@ -1,13 +1,7 @@
-"""
-ArthSetu — Cedar Financial Policy Engine
-Evaluates financial actions against the Cedar policy file in < 1ms.
+"""Cedar policy evaluator for financial action authorization.
 
-Since cedar-policy Python bindings may not be available for Python 3.9,
-this module implements a pure-Python Cedar policy evaluator for the
-5 ArthSetu policies defined in policies/guardrails.cedar.
-
-The interface is designed to be cedar-policy-SDK-compatible so it can be
-swapped with the native binding when Python 3.11 is available.
+Evaluates user actions against policies defined in policies/guardrails.cedar.
+Provides local evaluation and persists audit records in SQLite.
 """
 
 from __future__ import annotations
@@ -20,10 +14,9 @@ from typing import Any
 
 logger = logging.getLogger("arthsetu.cedar")
 
-# Path to Cedar policy file
 POLICY_PATH = os.path.join(os.path.dirname(__file__), "..", "policies", "guardrails.cedar")
 
-# ─── Data classes mirroring Cedar entities ────────────────────────────────────
+# Entity models matching Cedar policy schema
 
 @dataclass
 class User:
@@ -64,19 +57,8 @@ class PolicyDecision:
         }
 
 
-# ─── Core evaluator ───────────────────────────────────────────────────────────
-
 class CedarEngine:
-    """
-    Pure-Python Cedar policy evaluator for ArthSetu.
-
-    Implements the 5 policies from policies/guardrails.cedar:
-      Rule 1: forbid InitiateUPILitePayment when threat_level == CRITICAL
-      Rule 2: forbid ApplyForLoan when arth_score < 30 AND debt_ratio > 60
-      Rule 3: forbid ShareKYCDocument unless requestor_type is verified
-      Rule 4: permit ClaimGovernmentScheme (always)
-      Rule 5: forbid ApproveHighValueTransfer when score < 40 AND amount > 5000
-    """
+    """Evaluates financial actions against the 5 security policies."""
 
     def evaluate(
         self,
@@ -85,8 +67,6 @@ class CedarEngine:
         context: PolicyContext,
         resource: Transfer | None = None,
     ) -> PolicyDecision:
-        """Evaluate a financial action against Cedar policies."""
-
         context.action = action
         snap = {
             "action": action,
@@ -98,7 +78,7 @@ class CedarEngine:
         if resource:
             snap["amount_inr"] = resource.amount_inr
 
-        # ── Rule 4: Government scheme — always permit (checked first) ────────
+        # Rule 4: Government schemes are always accessible
         if action == "ClaimGovernmentScheme":
             return PolicyDecision(
                 allowed=True,
@@ -108,7 +88,7 @@ class CedarEngine:
                 context_snapshot=snap,
             )
 
-        # ── Rule 1: Block UPI when threat is CRITICAL ────────────────────────
+        # Rule 1: Block payments under active scam threats
         if action == "InitiateUPILitePayment" and context.threat_level == "CRITICAL":
             logger.warning(f"Cedar DENY: InitiateUPILitePayment blocked — threat_level=CRITICAL user={principal.user_id}")
             return PolicyDecision(
@@ -119,7 +99,7 @@ class CedarEngine:
                 context_snapshot=snap,
             )
 
-        # ── Rule 2: Block loan when score < 30 AND debt > 60% ───────────────
+        # Rule 2: Inhibit new credit applications if user is in debt distress
         if action == "ApplyForLoan":
             if principal.arth_score < 30 and context.debt_ratio > 60:
                 logger.warning(f"Cedar DENY: ApplyForLoan — score={principal.arth_score} debt={context.debt_ratio}%")
@@ -131,7 +111,7 @@ class CedarEngine:
                     context_snapshot=snap,
                 )
 
-        # ── Rule 3: Block KYC sharing with unverified requestors ─────────────
+        # Rule 3: Only verified institutions can receive KYC documents
         if action == "ShareKYCDocument":
             verified = {"verified_bank", "government_portal"}
             if context.requestor_type not in verified:
@@ -144,7 +124,7 @@ class CedarEngine:
                     context_snapshot=snap,
                 )
 
-        # ── Rule 5: Block high-value transfer for low-score users ────────────
+        # Rule 5: Throttle high-value transfers for accounts with low resilience scores
         if action == "ApproveHighValueTransfer" and resource:
             if principal.arth_score < 40 and resource.amount_inr > 5000 and context.threat_level != "SAFE":
                 logger.warning(f"Cedar DENY: HighValueTransfer — score={principal.arth_score} amount=₹{resource.amount_inr}")
@@ -156,7 +136,7 @@ class CedarEngine:
                     context_snapshot=snap,
                 )
 
-        # ── Default: permit ────────────────────────────────────────────────────
+        # Default permit if no explicit forbid matched
         return PolicyDecision(
             allowed=True,
             reason="Default permit — no forbid rule matched.",
@@ -250,7 +230,7 @@ def evaluate_from_prahari_output(prahari_output: dict[str, Any], user_profile: d
     )
 
 
-# ─── Cedar Audit Trail ───────────────────────────────────────────────────────
+# Cedar audit trail persistence
 
 _AUDIT_DB_PATH = os.path.join(os.path.dirname(__file__), "..", ".arthsetu_data", "arthsetu.db")
 
