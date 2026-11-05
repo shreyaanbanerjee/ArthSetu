@@ -188,17 +188,25 @@ def _classify_locally(raw: str, detected_lang: str) -> dict[str, str]:
 
 
 def _synthesize_with_llm(state: dict[str, Any]) -> str | None:
-    """Use Gemini/Groq for final response synthesis incorporating user persona."""
+    """Use Gemini/Groq for final response synthesis incorporating user persona and conversation history."""
     profile = state.get("user_profile", {})
     user_persona = format_user_persona(profile)
+
+    # Multi-turn conversation memory — inject recent context
+    from core.memory import get_recent_context
+    conversation_history = get_recent_context(state.get("user_id", "demo-user"), limit=5)
+    history_block = ""
+    if conversation_history:
+        history_block = f"\n\nRecent Conversation History (for context continuity):\n{conversation_history}\n\nUse this history to understand follow-up questions, references to previous answers, or continued topics. Do NOT repeat previous answers."
 
     system_prompt = f"""You are Sutradhar, the orchestrator of ArthSetu, India's AI financial guardian.
 Your PRIMARY GOAL is to directly answer the user's question or address their input. Never recommend specific financial products by brand.
 
-{user_persona}
+{user_persona}{history_block}
 
 For final answers:
 - **Directly answer the user's question first.** If they ask about KYC, explain KYC. If they ask about a scheme, explain the scheme. Do NOT ignore their question.
+- If the user says "tell me more", "explain", "what about the second point", etc., use the conversation history above to understand what they're referring to.
 - ONLY mention fraud/scam if a scam is actually detected or the user asked about it. Otherwise, stay completely silent about fraud/security.
 - ONLY provide deep financial analysis or Arth Score details if the user explicitly asked about their finances, budget, or score.
 - Do NOT pad your answer with unsolicited advice about their budget or emergency fund unless they asked for it.
@@ -219,6 +227,7 @@ Return only valid JSON with key 'synthesis' only.
         f"Agent outputs: {json.dumps(state.get('agent_outputs', {}), ensure_ascii=False)}\n"
         "Return JSON with key synthesis only. Make the synthesis friendly and practical. Use the requested language exactly. Do NOT mention agent findings if they are irrelevant to the user message."
     )
+
 
     try:
         response_text = call_llm(

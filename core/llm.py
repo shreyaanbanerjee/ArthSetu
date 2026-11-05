@@ -62,51 +62,41 @@ def call_llm(
     response_format: str = "text",
     model: str | None = None,
 ) -> str | None:
-    """Call LLM (Gemini or Groq) depending on configuration and model name."""
-    if not model:
-        model = "gemini-3.5-flash" if GEMINI_API_KEY else "llama-3.1-8b-instant"
-
-    is_gemini = "gemini" in model.lower() or "antigravity" in model.lower() or not GROQ_API_KEY
-
-    if is_gemini and GEMINI_API_KEY:
+    """Call Gemini 2.5 Flash via high-performance REST API with local fallback."""
+    if GEMINI_API_KEY:
         try:
-            import google.generativeai as genai
-            gemini_model_name = model
-            if "gemini-1.5-flash" in model or ":" in model or not any(x in model.lower() for x in ["gemini", "antigravity", "gemma"]):
-                gemini_model_name = "gemini-3.5-flash"
+            import json
+            import urllib.request
 
-            genai.configure(api_key=GEMINI_API_KEY)
-            model_instance = genai.GenerativeModel(
-                model_name=gemini_model_name,
-                system_instruction=system_prompt
-            )
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+            contents = []
+            if system_prompt:
+                contents.append({"role": "user", "parts": [{"text": f"System context:\n{system_prompt}"}]})
+                contents.append({"role": "model", "parts": [{"text": "Understood. I will act accordingly."}]})
+            contents.append({"role": "user", "parts": [{"text": prompt}]})
 
-            generation_config = {}
+            payload: dict[str, Any] = {"contents": contents}
             if response_format == "json":
-                generation_config["response_mime_type"] = "application/json"
+                payload["generationConfig"] = {"responseMimeType": "application/json"}
 
-            res = model_instance.generate_content(
-                prompt,
-                generation_config=generation_config
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
             )
-            return res.text
-        except Exception as e:
-            logger.error(f"Gemini API call failed for model {model}: {e}")
-            if GROQ_API_KEY:
-                logger.info("Falling back to Groq...")
-                fallback_model = "llama-3.1-8b-instant"
-                return _call_groq(prompt, system_prompt, response_format, fallback_model)
-            raise e
+            with urllib.request.urlopen(req, timeout=15) as response:
+                result = json.loads(response.read().decode("utf-8"))
+                return result["candidates"][0]["content"]["parts"][0]["text"]
+        except Exception as exc:
+            logger.error(f"Gemini REST call failed: {exc}")
 
     if GROQ_API_KEY:
-        groq_model = model
-        if "70b-versatile" in model:
-            groq_model = "llama-3.3-70b-versatile"
-        elif ":" in model or not any(x in model.lower() for x in ["llama-3", "llama3-", "mixtral", "gemma"]):
-            groq_model = "llama-3.1-8b-instant"
-        return _call_groq(prompt, system_prompt, response_format, groq_model)
+        try:
+            return _call_groq(prompt, system_prompt, response_format, "llama-3.1-8b-instant")
+        except Exception as exc:
+            logger.error(f"Groq fallback failed: {exc}")
 
-    logger.error("No API keys found for LLM invocation.")
     return None
 
 

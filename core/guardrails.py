@@ -28,7 +28,7 @@ _PAN_RE = re.compile(r"\b[A-Z]{5}\d{4}[A-Z]\b")                          # ABCDE
 _BANK_ACCT_RE = re.compile(r"\b\d{9,18}\b")                              # 9-18 digit account numbers
 _CREDIT_CARD_RE = re.compile(r"\b(?:\d[ -]*?){13,19}\b")                  # 13-19 digits with optional spaces/dashes
 _IFSC_RE = re.compile(r"\b[A-Z]{4}0[A-Z0-9]{6}\b")                       # SBIN0001234
-_UPI_PIN_RE = re.compile(r"\b(?:upi\s*pin|pin)\s*(?:is|:)?\s*(\d{4,6})\b", re.I)
+_UPI_PIN_RE = re.compile(r"\b(?:upi\s*pin|pin)\s*(?:is\s*:|is|:)?\s*(\d{4,6})\b", re.I)
 
 # Prompt injection patterns
 _INJECTION_PATTERNS = [
@@ -46,7 +46,7 @@ _INJECTION_PATTERNS = [
 # legitimate financial queries)
 _TOXIC_PATTERNS = [
     re.compile(r"\b(?:kill\s+(?:yourself|urself|you)|suicide\s+(?:method|how))\b", re.I),
-    re.compile(r"\b(?:bomb\s+(?:making|threat)|terrorist)\b", re.I),
+    re.compile(r"\b(?:bomb\s+(?:making|threat)|make\s+(?:a\s+)?bomb|terrorist)\b", re.I),
     re.compile(r"\b(?:child\s+(?:porn|abuse|exploitation))\b", re.I),
 ]
 

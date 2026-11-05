@@ -9,6 +9,8 @@ services:
     depends_on:
       - redis
       - rabbitmq
+      - localstack
+      - opensearch
     volumes:
       - .:/app
 
@@ -54,5 +56,48 @@ services:
     volumes:
       - chroma:/chroma/chroma
 
+  # ─── AWS LocalStack (SQS + DynamoDB + S3 emulation) ───────────────────────
+  localstack:
+    image: localstack/localstack:latest
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=sqs,dynamodb,s3,lambda
+      - DEBUG=0
+      - LAMBDA_EXECUTOR=local
+      - DEFAULT_REGION=ap-south-1
+      - AWS_DEFAULT_REGION=ap-south-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── OpenSearch (single-node, local scheme genome) ────────────────────────
+  opensearch:
+    image: opensearchproject/opensearch:2.11.0
+    environment:
+      - discovery.type=single-node
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - DISABLE_SECURITY_PLUGIN=true
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
 volumes:
   chroma:
+  localstack_data:
+  opensearch_data:

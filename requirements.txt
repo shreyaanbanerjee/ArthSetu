@@ -17,3 +17,16 @@ pillow==11.0.0
 pytesseract==0.3.13
 faster-whisper==1.0.3
 python-telegram-bot==21.11.1
+
+# ── AWS Stack (Ship It track) ─────────────────────────────────────────────────
+boto3>=1.35.0
+opensearch-py>=2.7.0
+requests-aws4auth>=1.3.0
+litellm>=1.0.0
+
+# ── Strands Agents SDK (requires Python 3.10+ — install in Python 3.11 venv) ─
+# strands-agents>=0.1.0
+# strands-agents-tools>=0.1.0
+
+# ── Cedar Policy (Rust bindings — install separately if Python 3.10+ available) 
+# cedar-policy>=3.0.0

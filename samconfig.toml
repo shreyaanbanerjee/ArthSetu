@@ -1,0 +1,35 @@
+version = 0.1
+
+[default]
+[default.global.parameters]
+stack_name = "arthsetu-stack"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.deploy.parameters]
+stack_name = "arthsetu-stack"
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = false
+resolve_s3 = true
+region = "ap-south-1"
+image_repositories = []
+
+[production]
+[production.deploy.parameters]
+stack_name = "arthsetu-stack"
+region = "ap-south-1"
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = false
+resolve_s3 = true
+parameter_overrides = "Environment=production"
+
+[local]
+[local.deploy.parameters]
+stack_name = "arthsetu-local"
+region = "ap-south-1"
+capabilities = "CAPABILITY_IAM"
+resolve_s3 = true
+s3_bucket = "arthsetu-local-bucket"
+confirm_changeset = false

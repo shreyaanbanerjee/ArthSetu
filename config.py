@@ -8,6 +8,8 @@ from typing import Final
 from dotenv import load_dotenv
 
 load_dotenv()
+os.environ.setdefault("AWS_EC2_METADATA_DISABLED", "true")
+os.environ.setdefault("AWS_DEFAULT_REGION", "ap-south-1")
 
 
 APP_ENV: Final[str] = os.getenv("APP_ENV", "local")
@@ -32,6 +34,16 @@ DATABASE_URL: Final[str | None] = os.getenv("DATABASE_URL")
 CHROMADB_PATH: Final[str] = os.getenv("CHROMADB_PATH", "./chroma_db")
 OLLAMA_HOST: Final[str] = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 RABBITMQ_URL: Final[str] = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672//")
+
+# ── AWS Infrastructure (Ship It track) ────────────────────────────────────────────
+AWS_REGION: Final[str] = os.getenv("AWS_DEFAULT_REGION", os.getenv("AWS_REGION", "ap-south-1"))
+SQS_QUEUE_URL: Final[str] = os.getenv("SQS_QUEUE_URL", "")
+DYNAMODB_SCAM_TABLE: Final[str] = os.getenv("DYNAMODB_SCAM_TABLE", "ArthSetu-ScamReports")
+DYNAMODB_NETWORK_TABLE: Final[str] = os.getenv("DYNAMODB_NETWORK_TABLE", "ArthSetu-ScamNetwork")
+OPENSEARCH_ENDPOINT: Final[str] = os.getenv("OPENSEARCH_ENDPOINT", "")
+CEDAR_POLICY_PATH: Final[str] = os.getenv("CEDAR_POLICY_PATH", "./policies/guardrails.cedar")
+LOCALSTACK_ENDPOINT: Final[str] = os.getenv("LOCALSTACK_ENDPOINT", "http://localhost:4566")
+USE_STRANDS: Final[bool] = os.getenv("USE_STRANDS", "true").lower() in {"1", "true", "yes"}
 
 # DPI and reporting
 DPI_MODE: Final[str] = os.getenv("DPI_MODE", "simulation")

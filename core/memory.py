@@ -198,6 +198,42 @@ def get_full_history(user_id: str) -> list[dict[str, Any]]:
         return []
 
 
+def get_recent_context(user_id: str, limit: int = 5) -> str:
+    """Retrieve the last N conversation turns as a compact string for LLM context.
+
+    Returns a formatted string like:
+        [Turn 1] User: ... | Assistant: ...
+        [Turn 2] User: ... | Assistant: ...
+    
+    Truncates long responses to keep the context window reasonable.
+    """
+    try:
+        import sqlite3
+        DATA_DIR.mkdir(exist_ok=True)
+        with sqlite3.connect(SQLITE_DB_PATH) as conn:
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT query, response, intent FROM user_conversations "
+                "WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?",
+                (user_id, limit),
+            )
+            rows = list(cur.fetchall())
+            if not rows:
+                return ""
+            # Reverse so oldest is first (chronological order)
+            rows.reverse()
+            turns = []
+            for i, row in enumerate(rows, 1):
+                q = (row["query"] or "")[:200]
+                r = (row["response"] or "")[:300]
+                turns.append(f"[Turn {i}] User: {q} | Assistant: {r}")
+            return "\n".join(turns)
+    except Exception:
+        return ""
+
+
+
 def _save_session_to_redis(user_id: str, state: dict[str, Any]) -> bool:
     """Save session to Redis."""
     try:

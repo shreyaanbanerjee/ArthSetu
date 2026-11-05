@@ -10,9 +10,7 @@ from typing import Any
 import httpx
 
 from fastapi import APIRouter, BackgroundTasks, Form
-from fastapi.responses import Response
-from twilio.rest import Client
-from twilio.twiml.messaging_response import MessagingResponse
+from starlette.responses import Response
 
 from config import (
     DEFAULT_LANGUAGE,
@@ -93,7 +91,11 @@ async def receive_twilio_whatsapp(
         raw_text = "Please decode this financial document."
 
     background_tasks.add_task(_process_and_reply, From, raw_text, is_voice, has_media)
-    return Response(content=str(MessagingResponse()), media_type="application/xml")
+    try:
+        from twilio.twiml.messaging_response import MessagingResponse
+        return Response(content=str(MessagingResponse()), media_type="application/xml")
+    except Exception:
+        return Response(content="<Response></Response>", media_type="application/xml")
 
 
 import logging as _logging
@@ -248,6 +250,7 @@ def send_whatsapp_text(to: str, text: str) -> dict[str, Any]:
         print("send_whatsapp_text ERROR: Missing Twilio credentials")
         return {"status": "not_configured"}
     try:
+        from twilio.rest import Client
         client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
         msg = client.messages.create(
             from_=TWILIO_WHATSAPP_FROM,

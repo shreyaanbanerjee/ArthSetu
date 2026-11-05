@@ -126,10 +126,10 @@ function speak(text: string, lang: string) {
     // Fallback: If Marathi voice not found, try Hindi (since both use Devanagari)
     if (!voice && lang === 'mr') {
       voice = currentVoices.find(v => v.lang.toLowerCase().startsWith("hi"));
-      if (voice) utt.lang = "hi-IN"; // Override lang so TTS engine understands
+      if (voice) utt.lang = "hi-IN";
     }
     
-    // Fallback for ANY missing native voice: try to find Google Hindi as a generic fallback for Indian scripts
+    // Fallback for ANY missing native voice
     if (!voice && (lang === 'hi' || lang === 'mr' || lang === 'bn' || lang === 'gu' || lang === 'pa')) {
        voice = currentVoices.find(v => v.lang.toLowerCase().startsWith("hi"));
        if (voice) utt.lang = "hi-IN";
@@ -145,7 +145,6 @@ function speak(text: string, lang: string) {
       trySpeak();
     };
     window.speechSynthesis.addEventListener('voiceschanged', handler);
-    // Timeout fallback just in case event never fires
     setTimeout(() => {
       window.speechSynthesis.removeEventListener('voiceschanged', handler);
       trySpeak();
@@ -154,9 +153,7 @@ function speak(text: string, lang: string) {
     trySpeak();
   }
 }
-function stopSpeaking() {
-  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-}
+
 
 // ─── Animated Waveform Canvas ─────────────────────────────────────────────────
 function useWaveform(canvasRef: React.RefObject<HTMLCanvasElement | null>, active: boolean) {
@@ -341,11 +338,7 @@ export default function VoiceHub() {
   }, []);
 
   useEffect(() => {
-    const up = () => setIsOnline(true);
-    const down = () => setIsOnline(false);
-    window.addEventListener("online", up);
-    window.addEventListener("offline", down);
-    setIsOnline(navigator.onLine);
+    setIsOnline(true);
     return () => { window.removeEventListener("online", up); window.removeEventListener("offline", down); };
   }, []);
 
@@ -757,11 +750,11 @@ export default function VoiceHub() {
       {activePanel === "none" && (
         <div className="orb-zone">
           <div className="orb-outer">
-            <div className="orb-ring" />
-            <div className="orb-ring" />
-            <div className="orb-ring" />
+            <div className={`orb-ring ${orbState === "listening" ? "listening-ring" : orbState === "thinking" ? "thinking-ring" : ""}`} />
+            <div className={`orb-ring ${orbState === "listening" ? "listening-ring" : orbState === "thinking" ? "thinking-ring" : ""}`} />
+            <div className={`orb-ring ${orbState === "listening" ? "listening-ring" : orbState === "thinking" ? "thinking-ring" : ""}`} />
             <button
-              className={`orb-core ${orbState === "listening" ? "listening" : orbState === "thinking" ? "thinking" : ""}`}
+              className={`orb-core ${orbState === "listening" ? "listening" : orbState === "thinking" ? "thinking" : "idle"}`}
               onClick={() => startListening()}
               id="voice-orb"
               aria-label="Tap to speak to ArthSetu"
@@ -804,9 +797,49 @@ export default function VoiceHub() {
             </div>
             <div className="orb-sub">
               {orbState === "idle" && "ArthSetu · Your financial guardian"}
-              {orbState === "listening" && "Speak your question in " + (LANGUAGES.find(l => l.code === language)?.label || "Hindi")}
-              {orbState === "thinking" && "Running agents · Prahari · Shilpi · Vivek"}
+              {orbState === "listening" && "Speak in " + (LANGUAGES.find(l => l.code === language)?.label || "Hindi")}
+              {orbState === "thinking" && (
+                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span>Cedar · Prahari · Shilpi · Vivek</span>
+                  {currentResponse?.scamDetected && (
+                    <span className="cedar-badge denied">
+                      <span className="cedar-badge-dot" />
+                      🛡️ Blocked
+                    </span>
+                  )}
+                </span>
+              )}
             </div>
+            {/* Cedar policy badge — shown after a response */}
+            {currentResponse && activePanel === "none" && (
+              <div style={{ marginTop: 10, display: "flex", justifyContent: "center" }}>
+                {currentResponse.scamDetected ? (
+                  <span className="cedar-badge denied" title="Cedar Financial Firewall blocked a payment action">
+                    <span className="cedar-badge-dot" />
+                    🛡️ Cedar Denied · UPI Blocked
+                  </span>
+                ) : (
+                  <span className="cedar-badge allowed">
+                    <span className="cedar-badge-dot" />
+                    ✓ Cedar · Permitted
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Collective Intelligence Banner — shown when ScamNetwork has prior reports ── */}
+      {activePanel === "none" && currentResponse?.scamDetected &&
+        (currentResponse as any)?.collectiveReports > 0 && (
+        <div className="scam-network-banner">
+          <div className="scam-network-banner-icon">🕸️</div>
+          <div className="scam-network-banner-text">
+            <div className="scam-network-banner-count">
+              {(currentResponse as any).collectiveReports} ArthSetu user{(currentResponse as any).collectiveReports !== 1 ? "s" : ""} reported this before
+            </div>
+            <div className="scam-network-banner-sub">Collective scam intelligence · Powered by AWS DynamoDB</div>
           </div>
         </div>
       )}
@@ -819,6 +852,22 @@ export default function VoiceHub() {
       {/* ── Nudge Cards ── */}
       {activePanel === "none" && nudgeCards.length > 0 && (
         <div className="nudge-dock">
+          {/* Scheme Genome Benefit Card — shown when schemes are matched */}
+          {schemesLoaded && schemeResults.length > 0 && (() => {
+            const totalBenefit = schemeResults.reduce((sum: number, s: SchemeItem) => {
+              return sum + (Number((s as any).benefit_inr_annual) || 0);
+            }, 0);
+            return totalBenefit > 0 ? (
+              <div className="scheme-genome-card">
+                <div className="scheme-genome-icon">🏛️</div>
+                <div>
+                  <div className="scheme-genome-benefit">₹{totalBenefit.toLocaleString("en-IN")}/yr</div>
+                  <div className="scheme-genome-label">Annual welfare benefits unlocked</div>
+                  <div className="scheme-genome-count">{schemeResults.length} schemes · OpenSearch Genome</div>
+                </div>
+              </div>
+            ) : null;
+          })()}
           {nudgeCards.map((n) => (
             <div key={n.id} className="nudge-card" onClick={() => playNudge(n.text)}>
               <div className={`nudge-icon ${n.type}`}>
@@ -861,6 +910,13 @@ export default function VoiceHub() {
           ))}
         </div>
       )}
+
+      {/* ── AWS Status Pill ── */}
+      <div className="aws-status-pill" title="Connected to AWS ap-south-1">
+        <div className="aws-status-dot" />
+        AWS ap-south-1
+      </div>
+
 
       {/* ─────────────────────────────────────────────────────────── */}
       {/* ── PANEL: Account Overview (Swipe Up) ── */}

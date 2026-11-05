@@ -1,0 +1,149 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  ArthSetu — Scam Intelligence Network
+  SQS → Lambda (fraud parser) → DynamoDB
+  Deployed on AWS ap-south-1 for WeMakeDevs Hackathon
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+    Runtime: python3.11
+    Environment:
+      Variables:
+        SCAM_TABLE_NAME: !Ref ScamReportsTable
+        NETWORK_TABLE_NAME: !Ref ScamNetworkTable
+        REGION: !Ref AWS::Region
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues: [local, production]
+
+Resources:
+
+  # ─── SQS: Scam Report Queue ───────────────────────────────────────────────
+  ScamReportQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ArthSetu-ScamReportQueue
+      VisibilityTimeout: 60
+      MessageRetentionPeriod: 86400   # 24 hours
+      Tags:
+        - Key: Project
+          Value: ArthSetu
+        - Key: Track
+          Value: ShipIt
+
+  # ─── DynamoDB: Individual scam reports ───────────────────────────────────
+  ScamReportsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ArthSetu-ScamReports
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: scam_id
+          AttributeType: S
+        - AttributeName: reported_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: scam_id
+          KeyType: HASH
+        - AttributeName: reported_at
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      Tags:
+        - Key: Project
+          Value: ArthSetu
+
+  # ─── DynamoDB: Aggregated scam intelligence network ──────────────────────
+  ScamNetworkTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ArthSetu-ScamNetwork
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: fingerprint
+          AttributeType: S
+      KeySchema:
+        - AttributeName: fingerprint
+          KeyType: HASH
+      Tags:
+        - Key: Project
+          Value: ArthSetu
+
+  # ─── Lambda: Fraud Parser (SQS trigger) ───────────────────────────────────
+  FraudParserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ArthSetu-FraudParser
+      CodeUri: lambda/fraud_parser/
+      Handler: handler.lambda_handler
+      Description: Parses scam reports from SQS, writes to DynamoDB, updates ScamNetwork
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ScamReportsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ScamNetworkTable
+        - SQSPollerPolicy:
+            QueueName: !GetAtt ScamReportQueue.QueueName
+      Events:
+        SQSTrigger:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt ScamReportQueue.Arn
+            BatchSize: 10
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+      Tags:
+        Project: ArthSetu
+
+  # ─── Lambda: Scam Aggregator (runs every hour) ─────────────────────────────
+  ScamAggregatorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ArthSetu-ScamAggregator
+      CodeUri: lambda/fraud_parser/
+      Handler: aggregator.lambda_handler
+      Description: Hourly aggregation of scam fingerprints into ScamNetwork table
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ScamReportsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ScamNetworkTable
+      Events:
+        HourlyTrigger:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 hour)
+            Name: ArthSetu-ScamAggregatorSchedule
+            Description: Aggregate scam reports hourly
+      Tags:
+        Project: ArthSetu
+
+Outputs:
+  ScamReportQueueUrl:
+    Description: SQS Queue URL for scam reports
+    Value: !Ref ScamReportQueue
+    Export:
+      Name: ArthSetu-ScamQueueUrl
+
+  ScamReportQueueArn:
+    Description: SQS Queue ARN
+    Value: !GetAtt ScamReportQueue.Arn
+
+  ScamReportsTableName:
+    Description: DynamoDB scam reports table
+    Value: !Ref ScamReportsTable
+
+  ScamNetworkTableName:
+    Description: DynamoDB scam network table
+    Value: !Ref ScamNetworkTable
+
+  FraudParserFunctionArn:
+    Description: Lambda function ARN
+    Value: !GetAtt FraudParserFunction.Arn

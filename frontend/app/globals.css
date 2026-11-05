@@ -23,6 +23,15 @@
   --blue-glow: rgba(99,179,237,0.3);
   --purple: #b794f4;
 
+  /* Neon palette for Voice Orb */
+  --neon-gold: #f59e0b;
+  --neon-amber: #fbbf24;
+  --neon-orange: #fb923c;
+  --neon-red-hot: #ff2d55;
+  --neon-green: #10b981;
+  --cedar-green: rgba(16,185,129,0.9);
+  --cedar-red: rgba(239,68,68,0.9);
+
   --text: #f0f0f0;
   --text-dim: rgba(240,240,240,0.55);
   --text-faint: rgba(240,240,240,0.28);
@@ -321,25 +330,105 @@ html, body {
 }
 .orb-core:active { transform: scale(0.96); }
 
-.orb-core.listening {
-  animation: orbListen 0.8s ease-in-out infinite alternate;
-  box-shadow:
-    0 0 60px rgba(229,62,62,0.8),
-    0 0 120px rgba(229,62,62,0.4),
-    inset 0 1px 0 rgba(255,255,255,0.2);
+/* ── IDLE state: gentle neon gold pulse ───────────────────────────────────── */
+.orb-core.idle {
+  animation: orbIdleNeon 4s ease-in-out infinite;
 }
-.orb-core.thinking {
-  animation: orbThink 1.2s linear infinite;
-  background: radial-gradient(circle at 38% 35%, #f6ad55, #c0392b 45%, #1a0505 75%);
+@keyframes orbIdleNeon {
+  0%, 100% {
+    box-shadow:
+      0 0 30px rgba(229,62,62,0.4),
+      0 0 60px rgba(229,62,62,0.18),
+      inset 0 1px 0 rgba(255,255,255,0.15);
+  }
+  50% {
+    box-shadow:
+      0 0 50px rgba(245,158,11,0.55),
+      0 0 100px rgba(245,158,11,0.22),
+      0 0 150px rgba(245,158,11,0.08),
+      inset 0 1px 0 rgba(255,255,255,0.2);
+  }
 }
 
-@keyframes orbListen {
-  from { transform: scale(1); box-shadow: 0 0 60px rgba(229,62,62,0.8), 0 0 120px rgba(229,62,62,0.4); }
-  to   { transform: scale(1.06); box-shadow: 0 0 80px rgba(229,62,62,1), 0 0 160px rgba(229,62,62,0.5); }
+/* ── LISTENING state: rapid red breathe with expanding rings ───────────────── */
+.orb-core.listening {
+  animation: orbBreatheCritical 0.65s ease-in-out infinite alternate;
+  background: radial-gradient(circle at 38% 35%, #ff2d55, #c0392b 40%, #2a0000 75%);
 }
-@keyframes orbThink {
-  from { filter: hue-rotate(0deg); }
-  to   { filter: hue-rotate(30deg); }
+@keyframes orbBreatheCritical {
+  from {
+    transform: scale(1);
+    box-shadow:
+      0 0 50px rgba(255,45,85,0.75),
+      0 0 100px rgba(255,45,85,0.35),
+      inset 0 1px 0 rgba(255,255,255,0.2);
+  }
+  to {
+    transform: scale(1.08);
+    box-shadow:
+      0 0 90px rgba(255,45,85,1),
+      0 0 160px rgba(255,45,85,0.55),
+      0 0 220px rgba(255,45,85,0.2),
+      inset 0 2px 0 rgba(255,255,255,0.3);
+  }
+}
+
+/* ── THINKING state: spinning conic yellow/orange/amber gradient ─────────── */
+.orb-core.thinking {
+  animation: orbSpinGradient 1.4s linear infinite;
+  background: conic-gradient(
+    from 0deg,
+    #fbbf24 0deg,
+    #f59e0b 60deg,
+    #fb923c 120deg,
+    #ef4444 180deg,
+    #dc2626 240deg,
+    #fbbf24 360deg
+  );
+}
+@keyframes orbSpinGradient {
+  from { transform: rotate(0deg); filter: brightness(1); }
+  50%  { filter: brightness(1.2); }
+  to   { transform: rotate(360deg); filter: brightness(1); }
+}
+
+/* ── SCAM CRITICAL state: blood-red pulsing alarm ───────────────────────── */
+.orb-core.scam-critical {
+  animation: orbScamAlarm 0.4s ease-in-out infinite alternate;
+  background: radial-gradient(circle at 38% 35%, #ff0000, #7b0000 50%, #000 80%);
+}
+@keyframes orbScamAlarm {
+  from {
+    transform: scale(1);
+    box-shadow: 0 0 80px rgba(255,0,0,0.9), 0 0 160px rgba(255,0,0,0.5);
+  }
+  to {
+    transform: scale(1.12);
+    box-shadow: 0 0 120px rgba(255,0,0,1), 0 0 240px rgba(255,0,0,0.7), 0 0 320px rgba(255,0,0,0.3);
+  }
+}
+
+/* Listening rings — animated expanding rings during listening ─────────── */
+.orb-ring.listening-ring {
+  animation: listeningRingExpand 1.2s ease-out infinite;
+}
+.orb-ring.listening-ring:nth-child(2) { animation-delay: 0.4s; }
+.orb-ring.listening-ring:nth-child(3) { animation-delay: 0.8s; }
+@keyframes listeningRingExpand {
+  0%   { opacity: 0.8; transform: scale(1); border-color: rgba(255,45,85,0.5); }
+  100% { opacity: 0; transform: scale(1.6); border-color: rgba(255,45,85,0); }
+}
+
+/* Thinking rings — slow golden glow ────────────────────────────────────── */
+.orb-ring.thinking-ring {
+  border-color: rgba(245,158,11,0.3);
+  animation: thinkingRingGlow 2s ease-in-out infinite;
+}
+.orb-ring.thinking-ring:nth-child(2) { animation-delay: 0.6s; border-color: rgba(245,158,11,0.18); }
+.orb-ring.thinking-ring:nth-child(3) { animation-delay: 1.2s; border-color: rgba(245,158,11,0.08); }
+@keyframes thinkingRingGlow {
+  0%,100% { opacity: 0.5; transform: scale(1); }
+  50%      { opacity: 1; transform: scale(1.05); }
 }
 
 /* Waveform canvas inside orb */
@@ -966,3 +1055,154 @@ html, body {
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+
+/* ─── COLLECTIVE INTELLIGENCE BANNER ─── */
+.scam-network-banner {
+  position: absolute;
+  top: 16px;
+  left: 16px; right: 16px;
+  background: linear-gradient(135deg, rgba(255,0,0,0.12), rgba(180,0,0,0.08));
+  border: 1px solid rgba(255,45,85,0.4);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 50;
+  backdrop-filter: blur(20px);
+  animation: bannerSlideDown 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes bannerSlideDown {
+  from { transform: translateY(-20px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+.scam-network-banner-icon {
+  font-size: 20px;
+  animation: iconPulse 1s ease-in-out infinite alternate;
+}
+@keyframes iconPulse {
+  from { transform: scale(1); }
+  to   { transform: scale(1.2); }
+}
+.scam-network-banner-text {
+  flex: 1;
+}
+.scam-network-banner-count {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ff4060;
+  letter-spacing: -0.3px;
+}
+.scam-network-banner-sub {
+  font-size: 11px;
+  color: rgba(255,64,96,0.7);
+  margin-top: 1px;
+}
+
+/* ─── CEDAR POLICY BADGE ─── */
+.cedar-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  border: 1px solid;
+  animation: badgePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes badgePop {
+  from { transform: scale(0.7); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+.cedar-badge.allowed {
+  background: rgba(16,185,129,0.12);
+  border-color: rgba(16,185,129,0.4);
+  color: #10b981;
+}
+.cedar-badge.denied {
+  background: rgba(239,68,68,0.12);
+  border-color: rgba(239,68,68,0.4);
+  color: #ef4444;
+}
+.cedar-badge-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: dotBlink 1s ease-in-out infinite;
+}
+@keyframes dotBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+/* ─── SCHEME GENOME BENEFIT CARD ─── */
+.scheme-genome-card {
+  background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(5,150,105,0.06));
+  border: 1px solid rgba(16,185,129,0.3);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  animation: genomeCardPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes genomeCardPop {
+  from { transform: scale(0.9) translateY(10px); opacity: 0; }
+  to   { transform: scale(1) translateY(0); opacity: 1; }
+}
+.scheme-genome-icon {
+  width: 44px; height: 44px;
+  background: rgba(16,185,129,0.15);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.scheme-genome-benefit {
+  font-size: 22px;
+  font-weight: 800;
+  color: #10b981;
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+.scheme-genome-label {
+  font-size: 11px;
+  color: rgba(16,185,129,0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+.scheme-genome-count {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 3px;
+}
+
+/* ─── AWS INFRA STATUS PILL ─── */
+.aws-status-pill {
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: rgba(0,0,0,0.7);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 10px;
+  color: var(--text-faint);
+  backdrop-filter: blur(8px);
+  z-index: 100;
+  letter-spacing: 0.2px;
+}
+.aws-status-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: #10b981;
+  animation: dotBlink 2s ease-in-out infinite;
+}
+

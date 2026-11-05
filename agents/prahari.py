@@ -1,4 +1,4 @@
-"""Prahari fraud sentinel agent."""
+"""Prahari fraud sentinel agent — with Cedar policy gate and SQS scam reporting."""
 
 from __future__ import annotations
 
@@ -8,6 +8,8 @@ from typing import Any
 from config import PRAHARI_MODEL, SCAM_CONFIDENCE_THRESHOLD
 from tools.scam_engine import compute_true_apr, extract_loan_terms, report_to_rbi_sachet, run_scam_detection
 from core.llm import call_llm, format_user_persona
+from core.cedar_engine import evaluate_from_prahari_output
+from tools.aws_tools import push_scam_to_sqs, check_scam_network
 
 
 def prahari_node(state: dict[str, Any]) -> dict[str, Any]:
@@ -31,6 +33,30 @@ def prahari_node(state: dict[str, Any]) -> dict[str, Any]:
     months = _int_or_none(triage.get("period_months")) or terms.get("period_months")
     apr_info = compute_true_apr(float(principal), float(repayment), int(months)) if principal and repayment and months else None
 
+    # ── Cedar Financial Firewall evaluation ───────────────────────────────────
+    prahari_output_for_cedar = {
+        "scam_detected": scam_detected,
+        "confidence": final_confidence,
+        "scam_type": triage.get("scam_type") or rule_result.get("matched_pattern") or "Unknown",
+    }
+    cedar_decision = evaluate_from_prahari_output(prahari_output_for_cedar, profile)
+
+    # ── Collective ScamNetwork intelligence lookup ─────────────────────────────
+    collective = check_scam_network(raw)
+
+    # ── SQS push if scam detected (async Lambda processing) ────────────────────
+    sqs_message_id = None
+    if scam_detected:
+        all_flags = list(dict.fromkeys([*(triage.get("red_flags") or []), *rule_result.get("flags", [])]))
+        sqs_message_id = push_scam_to_sqs(
+            scam_type=triage.get("scam_type") or rule_result.get("matched_pattern") or "Unknown",
+            message_excerpt=raw[:500],
+            confidence=final_confidence,
+            language=language,
+            red_flags=all_flags[:10],
+            user_id=state.get("user_id", "anonymous"),
+        )
+
     sachet_reference = None
     if scam_detected:
         sachet_reference = report_to_rbi_sachet(
@@ -49,6 +75,13 @@ def prahari_node(state: dict[str, Any]) -> dict[str, Any]:
         "apr_info": apr_info,
         "sachet_reference": sachet_reference,
         "verdict": "SCAM" if scam_detected else "CLEAR",
+        # ── New AWS-powered fields ──────────────────────────────────────────────
+        "cedar_decision": cedar_decision.to_dict(),
+        "cedar_allowed": cedar_decision.allowed,
+        "cedar_policy_id": cedar_decision.policy_id,
+        "collective_intelligence": collective,
+        "network_report_count": collective.get("report_count", 0),
+        "sqs_message_id": sqs_message_id,
     }
     return state
 

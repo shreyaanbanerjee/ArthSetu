@@ -13,7 +13,7 @@ from config import APR_WARNING_THRESHOLD, RBI_SACHET_URL
 
 SCAM_PATTERNS: list[dict[str, Any]] = [
     {"name": "kyc_expiry", "weight": 0.86, "regex": r"\bkyc\b.*\b(block|expire|suspend|band| बंद|ब्लॉक)"},
-    {"name": "otp_request", "weight": 0.95, "regex": r"\b(otp|one time password|cvv|pin|upi pin)\b.*\b(share|send|बताओ|भेज)"},
+    {"name": "otp_request", "weight": 0.95, "regex": r"(?:\b(otp|one time password|cvv|pin|upi pin)\b.*\b(share|send|बताओ|भेज|enter|give)\b|\b(share|send|बताओ|भेज|enter|give)\b.*\b(otp|one time password|cvv|pin|upi pin)\b)"},
     {"name": "remote_access", "weight": 0.92, "regex": r"\b(anydesk|teamviewer|screen share|remote access|quicksupport)\b"},
     {"name": "instant_loan_fee", "weight": 0.82, "regex": r"\b(processing fee|advance fee|पहले.*फीस|loan approved)\b"},
     {"name": "lottery_prize", "weight": 0.82, "regex": r"\b(lottery|prize|winner|इनाम|लॉटरी)\b"},
