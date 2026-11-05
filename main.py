@@ -383,6 +383,84 @@ async def get_history_handler(request: Request) -> JSONResponse:
 
 # ─── System Status Endpoint ─────────────────────────────────────────────────
 
+async def eval_validate_handler(request: Request) -> JSONResponse:
+    """Validate any user query and assistant response against the automated AI evaluation rubric."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    user_query = body.get("user_query", "")
+    ai_response = body.get("ai_response", "")
+    context = body.get("context", {})
+    use_llm = bool(body.get("use_llm_judge", False))
+    from core.ai_evaluator import validate_ai_response
+    report = validate_ai_response(user_query=user_query, ai_response=ai_response, context=context, use_llm_judge=use_llm)
+    return JSONResponse(report)
+
+
+async def chat_validate_handler(request: Request) -> JSONResponse:
+    """End-to-end chat execution with immediate automated AI validation of the response."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    user_id = body.get("user_id", "demo-user")
+    message = body.get("message", "")
+    profile_updates = body.get("profile_updates", {})
+    use_llm = bool(body.get("use_llm_judge", False))
+
+    profile = get_user_profile(user_id)
+    if profile_updates:
+        profile = upsert_user_profile(user_id, profile_updates)
+
+    state = {
+        "session_id": f"{user_id}-{time.time()}",
+        "user_id": user_id,
+        "raw_input": message,
+        "language": profile.get("language", "hi"),
+        "intent": "",
+        "emotional_register": "calm",
+        "agent_outputs": {},
+        "final_response": "",
+        "tts_audio_b64": None,
+        "upi_action": None,
+        "scam_detected": False,
+        "scheme_matches": [],
+        "arth_score_update": None,
+        "error": None,
+        "user_profile": profile,
+        "ocr_extracted_text": message,
+    }
+    try:
+        result = graph.invoke(state)
+    except Exception as exc:
+        result = {
+            **state,
+            "error": str(exc),
+            "final_response": "I could not process that fully. Please try again with a shorter message.",
+        }
+    update_session(user_id, result)
+
+    # Automated AI response evaluation
+    from core.ai_evaluator import validate_ai_response
+    val_context = {
+        "scam_detected": result.get("scam_detected", False),
+        "cedar_allowed": result.get("agent_outputs", {}).get("prahari", {}).get("cedar_allowed", True),
+        "scheme_matches": result.get("scheme_matches", []),
+    }
+    validation_report = validate_ai_response(
+        user_query=message,
+        ai_response=result.get("final_response", ""),
+        context=val_context,
+        use_llm_judge=use_llm,
+    )
+
+    return JSONResponse({
+        "chat_result": result,
+        "ai_validation": validation_report,
+    })
+
+
 async def system_status_handler(request: Request) -> JSONResponse:
     """Comprehensive system status for monitoring dashboards."""
     from core.cedar_engine import get_audit_stats
@@ -413,6 +491,7 @@ async def system_status_handler(request: Request) -> JSONResponse:
             "security_headers",
             "pii_redaction",
             "nemo_guardrails",
+            "ai_response_validation",
         ],
     })
 
@@ -424,6 +503,8 @@ routes = [
     Route("/health", health_handler, methods=["GET"]),
     Route("/api/v1/chat", chat_handler, methods=["POST"]),
     Route("/api/v1/chat/stream", chat_stream_handler, methods=["POST"]),
+    Route("/api/v1/chat/validate", chat_validate_handler, methods=["POST"]),
+    Route("/api/v1/eval/validate", eval_validate_handler, methods=["POST"]),
     Route("/api/v1/profile/{user_id}", get_profile_handler, methods=["GET"]),
     Route("/api/v1/profile/{user_id}", post_profile_handler, methods=["POST"]),
     Route("/api/v1/session/{user_id}", get_session_handler, methods=["GET"]),

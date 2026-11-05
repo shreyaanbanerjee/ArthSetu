@@ -71,3 +71,4 @@ else
     echo "   👉 To install: brew install aws-sam-cli"
     echo "   👉 Or run via LocalStack: docker compose up -d localstack"
 fi
+

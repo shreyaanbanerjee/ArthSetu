@@ -49,6 +49,7 @@ class TestAPIEndpoints(unittest.TestCase):
         self.assertIn("prahari", data["agents"])
         self.assertIn("cedar_firewall", data)
         self.assertEqual(data["cedar_firewall"]["rules_loaded"], 5)
+        self.assertIn("ai_response_validation", data.get("features", []))
 
     def test_cedar_stats_and_audit(self):
         """GET /api/v1/cedar/stats and /audit return compliance audit trail."""

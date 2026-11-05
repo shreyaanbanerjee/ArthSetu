@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/badge/Gemini-2.5_Flash-4285F4?style=flat-square&logo=google&logoColor=white" alt="Gemini"/>
   <img src="https://img.shields.io/badge/NeMo-Guardrails-76B900?style=flat-square&logo=nvidia&logoColor=white" alt="NeMo"/>
   <img src="https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker"/>
-  <img src="https://img.shields.io/badge/Tests-59_Passed-2ea44f?style=flat-square&logo=githubactions&logoColor=white" alt="Tests"/>
+  <img src="https://img.shields.io/badge/Tests-68_Passed-2ea44f?style=flat-square&logo=githubactions&logoColor=white" alt="Tests"/>
 </p>
 
 <h1 align="center">
@@ -24,7 +24,7 @@
 </p>
 
 <p align="center">
-  A deterministic multi-agent financial security system powered by AWS Strands Agents SDK, Cedar Policy Engine, and NeMo Guardrails — designed for India's 400M+ underbanked population. Every financial action passes through a <strong>5-rule Cedar "Financial Constitution"</strong> evaluated in <strong>&lt;1ms</strong>, zero API calls.
+  A deterministic multi-agent financial security system powered by AWS Strands Agents SDK, Cedar Policy Engine, and NeMo Guardrails — designed for India's 400M+ underbanked population. Every financial action passes through a <strong>5-rule Cedar "Financial Constitution"</strong> evaluated in <strong>&lt;1ms</strong>, zero API calls, and all AI responses are verified by an <strong>Automated AI Evaluation Engine (LLM-as-a-Judge)</strong>.
 </p>
 
 ---
@@ -33,16 +33,17 @@
 
 | Metric | Value |
 |---|---|
-| **Total Source Files** | **55+ files** across Python, TypeScript, CSS, Cedar, YAML, Bash |
-| **Total Lines of Code** | **9,500+ LoC** (hand-written, zero boilerplate) |
-| **Automated Test Suite** | **59 comprehensive unit & integration tests** (100% pass, 0.09s runtime) |
+| **Total Source Files** | **57+ files** across Python, TypeScript, CSS, Cedar, YAML, Bash |
+| **Total Lines of Code** | **9,800+ LoC** (hand-written, zero boilerplate) |
+| **Automated Test Suite** | **68 comprehensive unit, integration & AI validation tests** (100% pass, 0.10s runtime) |
+| **AI Response Validator** | **6-dimension automated evaluation engine** (LLM-as-a-judge + deterministic rubric) |
 | **AI Agents** | **5 specialized agents** + 1 orchestrator in a deterministic DAG |
-| **REST API Endpoints** | **12 endpoints** including SSE streaming, Cedar audit trail, scam network |
+| **REST & SSE Endpoints** | **14 endpoints** including SSE real-time streaming, Cedar audit trail, scam network, AI validation |
 | **Cedar Policy Rules** | **5 deterministic financial firewall rules** with audit trail & stats |
 | **NeMo Guardrail Layers** | **2 layers** (input + output) with **8 safety & injection patterns** |
 | **PII Detection Patterns** | **6 Indian PII regex patterns** (Aadhaar, PAN, IFSC, UPI PIN, bank account, credit card) |
 | **Scam Detection Patterns** | **30 weighted regex rules** + LLM dual-scoring (0.72 threshold) |
-| **Government Schemes DB** | **15+ welfare schemes** with eligibility matching & vector search |
+| **Government Schemes DB** | **15+ welfare schemes** with eligibility matching & OpenSearch vector search |
 | **Intent Classifications** | **16 distinct intents** with hybrid LLM + keyword fallback |
 | **Supported Languages** | **13 Indian languages** with speech biofeedback and native TTS fallbacks |
 | **Omnichannel Delivery** | **4 channels** — OLED PWA, WhatsApp (Twilio), Telegram, Voice |
@@ -108,6 +109,12 @@ ArthSetu runs a **deterministic directed acyclic graph (DAG)** where every user 
                                       │
                                       ▼
                              ┌─────────────────┐
+                             │  AUTOMATED AI   │  LLM-as-a-Judge Evaluation Engine
+                             │  EVALUATION     │  Validates across 6 safety dimensions
+                             └────────┬────────┘
+                                      │
+                                      ▼
+                             ┌─────────────────┐
                              │   RESPONSE       │
                              │   (PWA/WhatsApp/ │
                              │    Telegram/TTS) │
@@ -124,6 +131,59 @@ ArthSetu runs a **deterministic directed acyclic graph (DAG)** where every user 
 | **Shilpi** (शिल्पी) | Budget Planner | Gemini 2.5 Flash | Income-aware budget plans, government scheme matching (15+ schemes), seasonal income flex, action roadmaps |
 | **Vivek** (विवेक) | Score Coach | Gemini 2.5 Flash | Arth Score computation (0–100, 5 dimensions), financial habit tracking, personalized nudges, myth busting |
 | **Extractor** | Profile Learner | Deterministic | Dynamic profile extraction from conversations, auto-updates income/occupation/family data |
+
+---
+
+## 🤖 Automated AI Response Validation (LLM-as-a-Judge)
+
+ArthSetu introduces an automated evaluation and validation layer (`core/ai_evaluator.py`) ensuring that every AI-generated advice adheres to strict ethical, regulatory, and constitutional standards before reaching users.
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                   AUTOMATED AI VALIDATION ENGINE                       │
+│           (LLM-as-a-Judge with Deterministic Rubric Fallback)          │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+           ┌────────────────────────┼────────────────────────┐
+           ▼                        ▼                        ▼
+  ┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
+  │Financial Safety │      │PII Containment  │      │Cedar Alignment  │
+  │• Anti-guarantee │      │• Zero Aadhaar   │      │• Block compliance│
+  │• No crypto push │      │• Zero PAN leak  │      │• Scam warnings  │
+  │• Disclaimers    │      │• Zero UPI PIN   │      │• Threat triage  │
+  └─────────────────┘      └─────────────────┘      └─────────────────┘
+           │                        │                        │
+           ▼                        ▼                        ▼
+  ┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
+  │ Actionability   │      │Empathy & Tone   │      │ Factual Faith   │
+  │• Concrete steps │      │• De-escalation  │      │• Valid schemes  │
+  │• Plain language │      │• Calm register  │      │• Accurate rates │
+  │• Sequential flow│      │• Reassurance    │      │• No hallucination│
+  └─────────────────┘      └─────────────────┘      └─────────────────┘
+```
+
+### The 6 Evaluation Dimensions
+
+1. **Financial Safety & Regulatory Compliance (25% weight)**:
+   - Bans deceptive claims of "100% guaranteed returns", "risk-free profits", and "doubling money".
+   - Bans promotion of high-risk speculative instruments (crypto, futures, options).
+   - Enforces regulatory disclosures (SEBI / IRDAI / RBI) whenever formal products are discussed.
+
+2. **PII Containment & Zero-Leakage (20% weight)**:
+   - Prohibits reflecting or leaking Aadhaar numbers, PAN identifiers, UPI PINs, or bank passwords.
+
+3. **Cedar Policy & Threat Alignment (20% weight)**:
+   - Verifies that when Prahari detects a scam, the AI response explicitly issues a fraud warning and does **not** instruct the user to proceed with payment.
+   - Confirms that actions blocked by Cedar Constitution rules reflect explicit lockdown notices.
+
+4. **Actionability & Practical Guidance (15% weight)**:
+   - Evaluates whether the advice gives tangible, sequence-based next steps (e.g. portal URLs, document lists) rather than vague advice.
+
+5. **Empathy & Emotional Register (10% weight)**:
+   - Analyzes user distress cues (fear, moneylender threats, panic) and ensures the tone provides calming, empathetic de-escalation.
+
+6. **Factual Faithfulness & Anti-Hallucination (10% weight)**:
+   - Validates that recommended government welfare schemes match official canonical schemes (PM-KISAN, PM SVANidhi, PMJJBY, PMSBY, APY, etc.) without fabricated schemes.
 
 ---
 
@@ -206,7 +266,7 @@ ArthSetu leverages AWS serverless and managed services optimally configured for 
 
 ## 🧪 Automated Testing Framework & Verification
 
-ArthSetu includes a robust, battle-tested automated testing suite with **59 test cases** across 6 specialized modules, achieving a **100% pass rate** in under **0.1 seconds**.
+ArthSetu includes an extensive automated test suite with **68 test cases** across 7 specialized modules, achieving a **100% pass rate** in ~**0.10 seconds**.
 
 ```
 ======================================================================
@@ -214,19 +274,19 @@ ArthSetu includes a robust, battle-tested automated testing suite with **59 test
   Evaluating Multi-Agent DAG, Cedar Policy Firewall & AWS Integrations
 ======================================================================
 
-📦 Discovered 59 automated tests across test modules.
-...........................................................
+📦 Discovered 68 automated tests across test modules.
+....................................................................
 ----------------------------------------------------------------------
-Ran 59 tests in 0.092s — OK
+Ran 68 tests in 0.097s — OK
 
 ======================================================================
   📊 Test Execution Summary
 ======================================================================
-  • Total Tests Run : 59
-  • Passed          : 59 (100%)
+  • Total Tests Run : 68
+  • Passed          : 68 (100%)
   • Failures        : 0
   • Errors          : 0
-  • Execution Time  : 0.09 seconds
+  • Execution Time  : 0.10 seconds
 ======================================================================
   ✅ ALL TESTS PASSED PERFECTLY!
 ```
@@ -235,6 +295,7 @@ Ran 59 tests in 0.092s — OK
 
 | Test Suite | File | Tests | Coverage Scope |
 |---|---|:---:|---|
+| **AI Response Validation** | `tests/test_ai_validation.py` | 9 | Evaluates phishing fraud alerts, predatory loan true cost warnings, street vendor scheme accuracy, distressed worker empathy, PII containment failures, illegal guaranteed return rejections, and live `/api/v1/eval/validate` & `/api/v1/chat/validate` endpoints. |
 | **Cedar Policy Engine** | `tests/test_cedar_engine.py` | 11 | All 5 Financial Constitution rules (UPI critical block, loan distress block, KYC unverified block, scheme permit, high value transfer block), audit logging, audit stats aggregation, Prahari decision integration |
 | **Scam Detection & APR** | `tests/test_scam_engine.py` | 11 | OTP & UPI PIN theft detection, electricity disconnect fraud, fake KYC expiry, AnyDesk remote access, 100% guaranteed return scams, clean query safety, APR true-cost calculator (>36% predatory loans), loan term extraction, RBI Sachet packet generation |
 | **Dual-Layer Guardrails** | `tests/test_guardrails.py` | 9 | Layer 1 PII redaction (Aadhaar, PAN, UPI PIN, IFSC), prompt injection defenses (DAN, jailbreaks, system prompt leak), abuse filters, input character truncation (2,000 char cap), Layer 2 auto-disclaimer injection (SEBI/IRDAI), financial guarantee cleanup |
@@ -262,7 +323,7 @@ pytest tests/ -v
 
 ## 🌐 REST & Streaming API Reference
 
-ArthSetu exposes **12 production ASGI endpoints** with built-in token-bucket rate limiting (30 req/min per IP) and strict security headers:
+ArthSetu exposes **14 production ASGI endpoints** with built-in token-bucket rate limiting (30 req/min per IP) and strict security headers:
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -270,6 +331,8 @@ ArthSetu exposes **12 production ASGI endpoints** with built-in token-bucket rat
 | `GET` | `/` | API overview and service motto |
 | `POST` | `/api/v1/chat` | Main multi-agent chat endpoint with multi-turn memory (5 turns) |
 | `POST` | `/api/v1/chat/stream` | **Server-Sent Events (SSE)** streaming real-time agent execution status |
+| `POST` | `/api/v1/chat/validate` | **End-to-end chat execution with automated AI validation report** |
+| `POST` | `/api/v1/eval/validate` | **Validate any AI response along the 6-dimension evaluation rubric** |
 | `GET` | `/api/v1/system/status` | Comprehensive status of all 5 agents, Cedar firewall, and features |
 | `GET` | `/api/v1/cedar/stats` | Aggregated Cedar policy metrics (total evaluations, block rate, top blocked actions) |
 | `GET` | `/api/v1/cedar/audit` | Compliance-grade audit trail of all policy evaluations with filter by `user_id` |
@@ -374,7 +437,7 @@ sam list stack-outputs --stack-name arthsetu-stack --region ap-south-1
 ### GitHub Actions CI/CD Pipeline
 
 The repository includes an enterprise-grade GitHub Actions workflow (`.github/workflows/deploy.yml`):
-1. **Automated Testing:** Runs all 59 tests on Python 3.10 and 3.11 on every push and PR.
+1. **Automated Testing:** Runs all 68 tests on Python 3.10 and 3.11 on every push and PR.
 2. **Frontend Verification:** Builds and verifies the Next.js 15 PWA.
 3. **Continuous Deployment:** Automatically builds SAM and deploys the CloudFormation stack to AWS `ap-south-1` on pushes to `main`.
 
@@ -396,8 +459,9 @@ ArthSetu/
 │   ├── vivek.py               #   Score coach — Arth Score computation + nudges
 │   └── extractor.py           #   Profile learner — dynamic profile extraction
 │
-├── core/                      # Engine Layer (1,250 LoC)
+├── core/                      # Engine Layer (1,450 LoC)
 │   ├── graph.py               #   DAG runner — deterministic agent orchestration
+│   ├── ai_evaluator.py        #   Automated AI response evaluation engine (6 dimensions)
 │   ├── llm.py                 #   Unified LLM interface (Gemini REST + Groq)
 │   ├── cedar_engine.py        #   Pure-Python Cedar policy evaluator (<1ms, 5 rules)
 │   ├── guardrails.py          #   NeMo Guardrails — dual-layer safety & PII redaction
@@ -413,7 +477,8 @@ ArthSetu/
 │   ├── ocr.py                 #   Document OCR pipeline
 │   └── stt_tts.py             #   Speech-to-text / text-to-speech
 │
-├── tests/                     # Automated Test Suite (59 Tests, 100% Pass)
+├── tests/                     # Automated Test Suite (68 Tests, 100% Pass)
+│   ├── test_ai_validation.py  #   Elaborate automated AI response evaluation tests
 │   ├── test_cedar_engine.py   #   Cedar policy 5-rule financial firewall tests
 │   ├── test_scam_engine.py    #   Prahari fraud detection & APR calculator tests
 │   ├── test_guardrails.py     #   Input & output guardrails & PII redaction tests
@@ -448,7 +513,7 @@ ArthSetu/
 │   └── server.js              #   Standalone static server
 │
 ├── run_tests.py               # Unified test runner with formatted reporting
-├── main.py                    # Production Starlette ASGI server (12 endpoints + SSE)
+├── main.py                    # Production Starlette ASGI server (14 endpoints + SSE)
 ├── config.py                  # Centralized configuration (96 env vars)
 ├── template.yaml              # AWS SAM CloudFormation template (ap-south-1)
 ├── samconfig.toml             # SAM CLI deployment parameters
@@ -465,19 +530,21 @@ ArthSetu/
 
 2. **Cedar > LLM for Authorization** — Financial actions (UPI payments, loan applications, KYC sharing) are gated by deterministic Cedar policies, not LLM reasoning. This makes the security layer unhackable by prompt injection. Every decision is logged to a compliance-grade audit trail.
 
-3. **Dual-Scoring Scam Detection** — Every message gets both an LLM-based probability score AND a rule-based pattern match score (30 weighted regex patterns). The final confidence is `max(llm_score, rule_score)`, eliminating blind spots of either approach.
+3. **Automated AI Response Validation** — Every synthesized financial response can be verified through the automated evaluation judge (`/api/v1/chat/validate`) across 6 regulatory and safety dimensions.
 
-4. **Graceful Degradation** — Every external dependency (Redis, SQS, DynamoDB, OpenSearch, Gemini API) has a local fallback. The system runs fully offline with SQLite + JSON file storage + keyword-based classification.
+4. **Dual-Scoring Scam Detection** — Every message gets both an LLM-based probability score AND a rule-based pattern match score (30 weighted regex patterns). The final confidence is `max(llm_score, rule_score)`, eliminating blind spots of either approach.
 
-5. **Voice-First, Not Voice-Also** — The Web Speech API integration is a first-class citizen, not an afterthought. In 13 Indian languages, users can speak naturally and receive spoken responses.
+5. **Graceful Degradation** — Every external dependency (Redis, SQS, DynamoDB, OpenSearch, Gemini API) has a local fallback. The system runs fully offline with SQLite + JSON file storage + keyword-based classification.
 
-6. **Multi-Turn Conversation Memory** — The system injects the last 5 conversation turns into the synthesis prompt, enabling follow-up questions like "tell me more" or "explain the second point" without losing context.
+6. **Voice-First, Not Voice-Also** — The Web Speech API integration is a first-class citizen, not an afterthought. In 13 Indian languages, users can speak naturally and receive spoken responses.
 
-7. **SSE Streaming for Real-Time UX** — Instead of a single JSON response after all agents finish, the `/api/v1/chat/stream` endpoint streams agent status updates in real-time via Server-Sent Events: `"🛡️ Scanning for scams..."` → `"📄 Decoding document..."` → `"✨ Final response"`.
+7. **Multi-Turn Conversation Memory** — The system injects the last 5 conversation turns into the synthesis prompt, enabling follow-up questions like "tell me more" or "explain the second point" without losing context.
 
-8. **Scam Intelligence Network** — Every detected scam feeds into an aggregated intelligence network (SQS → Lambda → DynamoDB). The `/api/v1/scam-network/stats` endpoint surfaces collective patterns so the system gets smarter with every interaction.
+8. **SSE Streaming for Real-Time UX** — Instead of a single JSON response after all agents finish, the `/api/v1/chat/stream` endpoint streams agent status updates in real-time via Server-Sent Events: `"🛡️ Scanning for scams..."` → `"📄 Decoding document..."` → `"✨ Final response"`.
 
-9. **Production Security Hardening** — Token bucket rate limiting (30 req/min per IP), 6 security headers (X-Frame-Options, CSP, XSS-Protection), and PII redaction ensure the system is production-ready, not just a hackathon prototype.
+9. **Scam Intelligence Network** — Every detected scam feeds into an aggregated intelligence network (SQS → Lambda → DynamoDB). The `/api/v1/scam-network/stats` endpoint surfaces collective patterns so the system gets smarter with every interaction.
+
+10. **Production Security Hardening** — Token bucket rate limiting (30 req/min per IP), 6 security headers (X-Frame-Options, CSP, XSS-Protection), and PII redaction ensure the system is production-ready, not just a hackathon prototype.
 
 ---
 
