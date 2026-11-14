@@ -1,5 +1,11 @@
 # ArthSetu
 
+> **Live Production Deployment (AWS ap-south-1):**
+> - **Public Web App (Voice & Mic Enabled):** [https://insert-weed-asset-bargains.trycloudflare.com](https://insert-weed-asset-bargains.trycloudflare.com)
+> - **Direct EC2 Instance Endpoint:** [http://13.206.235.248](http://13.206.235.248)
+> - **Live Health Check:** [`https://insert-weed-asset-bargains.trycloudflare.com/health`](https://insert-weed-asset-bargains.trycloudflare.com/health)
+> - **Automated Test Matrix:** **98 tests passing (100% success rate)** across multi-agent DAG, Cedar firewall, fraud engine, and live scenarios.
+
 ArthSetu is a vernacular financial assistant, scam defense engine, and transaction authorization proxy built for informal-sector workers and underbanked populations in India. The system processes voice and text queries in regional Indian languages (Hindi, Marathi, Tamil, Telugu, Kannada, Bengali, Gujarati, Punjabi, and English), screens incoming communications for fraudulent patterns and predatory lending terms, gates sensitive actions through deterministic Cedar policies, and matches users with eligible welfare programs.
 
 ---
@@ -200,12 +206,13 @@ curl -X POST http://localhost:8000/api/v1/eval/validate \
 
 ---
 
-## Automated Test Suite (88 Tests, 100% Pass)
+## Automated Test Suite (98 Tests, 100% Pass)
 
-The unified test suite (`run_tests.py`) covers unit logic, integration boundaries, policy enforcement, vernacular patterns, and frontend API contracts:
+The unified test suite (`run_tests.py`) covers unit logic, integration boundaries, policy enforcement, vernacular patterns, frontend API contracts, and end-to-end user scenarios:
 
 | Test Module | Test Count | Scope |
 |---|---|---|
+| `tests/test_live_scenarios.py` | 10 tests | 10 end-to-end user journeys: power bill fraud, predatory APK lending, vernacular Hindi farmer welfare matching, street vendor capital, Cedar policy denial, prompt injection defense, multi-turn memory, AI rubric evaluation, SSE streaming, and security headers. |
 | `tests/test_cedar_engine.py` | 11 tests | Cedar 5-rule financial firewall, SQLite audit log, and statistical aggregation. |
 | `tests/test_ai_validation.py` | 9 tests | Automated AI response evaluation across all 6 rubric dimensions and validation endpoints. |
 | `tests/test_ai_evaluator_edge_cases.py` | 6 tests | Adversarial prompt injection against the evaluator, empty strings, PII leakage, omitted warnings. |
@@ -215,13 +222,13 @@ The unified test suite (`run_tests.py`) covers unit logic, integration boundarie
 | `tests/test_guardrails.py` | 9 tests | PII masking (Aadhaar, PAN, IFSC, UPI PIN), prompt injection blocking, and disclaimer injection. |
 | `tests/test_multi_agent_dag.py` | 9 tests | Multi-agent state orchestration, emotion recognition, multi-turn memory, and Arth score calculation. |
 | `tests/test_aws_tools.py` | 11 tests | SQS push, DynamoDB fingerprint queries, OpenSearch fallbacks, and SHA-256 hash consistency. |
-| `tests/test_api_endpoints.py` | 8 tests | Starlette HTTP routing, token-bucket rate limiting (30 req/min), and production security headers. |
-| **Total** | **88 tests** | **100% pass rate in ~8 seconds.** |
+| `tests/test_api_endpoints.py` | 8 tests | Starlette HTTP routing, token-bucket rate limiting (120 req/min), and production security headers. |
+| **Total** | **98 tests** | **100% pass rate in ~12 seconds.** |
 
 ### Running the Tests
 
 ```bash
-# Run all 88 automated tests
+# Run all 98 automated tests
 python run_tests.py
 
 # Run with verbose test-by-test reporting
