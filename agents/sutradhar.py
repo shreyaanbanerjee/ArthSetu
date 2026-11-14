@@ -162,16 +162,16 @@ def _classify_locally(raw: str, detected_lang: str) -> dict[str, str]:
     """Classify intent with deterministic keyword rules."""
     text = raw.lower()
     keyword_intents = [
-        ("scam_check", ["otp", "upi pin", "kyc", "fraud", "scam", "link", "lottery", "refund"]),
-        ("document", ["policy", "agreement", "statement", "form 16", "document", "pdf", "decode"]),
-        ("scheme", ["scheme", "yojana", "subsidy", "pm kisan", "pension", "benefit"]),
-        ("budget", ["budget", "expense", "spend", "save", "saving"]),
-        ("fasal", ["fasal", "crop", "kisan", "farmer", "harvest"]),
-        ("income_flex", ["gig", "daily wage", "variable income", "irregular income"]),
-        ("score", ["score", "arth score", "health"]),
-        ("habit", ["habit", "nudge", "remind"]),
-        ("paisa_padhai", ["learn", "explain", "samjhao", "what is"]),
-        ("myth", ["myth", "true or false", "sach"]),
+        ("scam_check", ["otp", "upi pin", "kyc", "fraud", "scam", "link", "lottery", "refund", "ओटीपी", "धोखा", "पिन", "लिंक", "लॉटरी"]),
+        ("document", ["policy", "agreement", "statement", "form 16", "document", "pdf", "decode", "दस्तावेज", "कागजात", "पॉलिसी"]),
+        ("scheme", ["scheme", "yojana", "subsidy", "pm kisan", "pension", "benefit", "योजना", "सब्सिडी", "पेंशन", "सहायता", "सरकारी"]),
+        ("budget", ["budget", "expense", "spend", "save", "saving", "बजट", "खर्च", "बचत"]),
+        ("fasal", ["fasal", "crop", "kisan", "farmer", "harvest", "फसल", "किसान", "खेती"]),
+        ("income_flex", ["gig", "daily wage", "variable income", "irregular income", "दिहाड़ी", "मजदूरी"]),
+        ("score", ["score", "arth score", "health", "स्कोर"]),
+        ("habit", ["habit", "nudge", "remind", "याद"]),
+        ("paisa_padhai", ["learn", "explain", "samjhao", "what is", "समझाओ", "सिखाओ"]),
+        ("myth", ["myth", "true or false", "sach", "अफवाह", "सच"]),
         ("pwa_link", ["pwa", "app", "link", "show me the pwa"]),
     ]
     intent = "general"
