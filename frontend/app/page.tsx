@@ -17,11 +17,12 @@ import {
   Award, 
   Clock, 
   CheckCircle2, 
-  AlertTriangle 
+  AlertTriangle,
+  BookOpen
 } from "lucide-react";
 
 // Types
-type TabType = "assistant" | "schemes" | "score" | "fraud" | "history";
+type TabType = "assistant" | "schemes" | "score" | "fraud" | "history" | "guide";
 
 interface ArthScore {
   score: number;
@@ -422,6 +423,13 @@ export default function ArthSetuApp() {
     setShowProfileModal(false);
   };
 
+  const handleTryScenario = (promptText: string) => {
+    setActiveTab("assistant");
+    setTimeout(() => {
+      sendMessage(promptText);
+    }, 50);
+  };
+
   return (
     <div className="app-shell">
       {/* Top Government/Fintech Navigation Bar */}
@@ -513,6 +521,14 @@ export default function ArthSetuApp() {
         >
           <Clock size={16} />
           <span>इतिहास</span>
+        </button>
+
+        <button 
+          className={`tab-btn ${activeTab === "guide" ? "active" : ""}`}
+          onClick={() => setActiveTab("guide")}
+        >
+          <BookOpen size={16} />
+          <span>मार्गदर्शिका (Guide)</span>
         </button>
       </nav>
 
@@ -890,6 +906,289 @@ export default function ArthSetuApp() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* TAB 6: GUIDE */}
+        {activeTab === "guide" && (
+          <div className="tab-pane-container guide-container">
+            {/* Guide Hero Card */}
+            <div className="guide-hero-card">
+              <div className="guide-hero-header">
+                <div className="guide-hero-badge">
+                  <BookOpen size={16} />
+                  <span>नागरिक मार्गदर्शिका • User Guide</span>
+                </div>
+                <h2>अर्थसेतु कैसे काम करता है और इसका उपयोग कैसे करें?</h2>
+                <p>
+                  अर्थसेतु भारतीय नागरिकों, किसानों, रेहड़ी-पटरी विक्रेताओं और परिवारों को वित्तीय सुरक्षा, 
+                  सरकारी कल्याणकारी योजनाओं और साइबर धोखाधड़ी से बचाव के लिए एक सुरक्षित, प्रमाणित डिजिटल परामर्श मंच प्रदान करता है।
+                </p>
+              </div>
+
+              <div className="guide-features-strip">
+                <div className="guide-feature-box">
+                  <div className="guide-feature-icon safe">
+                    <ShieldCheck size={20} />
+                  </div>
+                  <div>
+                    <strong>सिडार पॉलिसी फ़ायरवॉल</strong>
+                    <p>कोई भ्रामक या अवास्तविक वादा नहीं। प्रत्येक सलाह वित्तीय नियमों के अनुरूप जांची जाती है।</p>
+                  </div>
+                </div>
+
+                <div className="guide-feature-box">
+                  <div className="guide-feature-icon info">
+                    <Volume2 size={20} />
+                  </div>
+                  <div>
+                    <strong>सरल भाषा व बोलकर पूछें</strong>
+                    <p>हिंदी, अंग्रेजी व अन्य भारतीय भाषाओं में बोलकर या लिखकर आसानी से सलाह प्राप्त करें।</p>
+                  </div>
+                </div>
+
+                <div className="guide-feature-box">
+                  <div className="guide-feature-icon alert">
+                    <ShieldAlert size={20} />
+                  </div>
+                  <div>
+                    <strong>30+ साइबर फ्रॉड डिटेक्शन</strong>
+                    <p>बिजली बिल, लॉटरी, 7-दिन वाले लोन ऐप व ओटीपी फर्जीवाड़े की तत्काल सुरक्षा जांच।</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Interactive Scenarios Section */}
+            <div className="guide-section">
+              <div className="section-title-bar">
+                <h3>
+                  <CheckCircle2 size={18} color="var(--gov-saffron)" />
+                  <span>प्रमुख परिदृश्य एवं लाइव टेस्ट (Interactive Scenarios)</span>
+                </h3>
+                <span className="section-subtitle">नीचे दिए गए किसी भी प्रश्न को एक क्लिक में चलाकर देखें:</span>
+              </div>
+
+              <div className="guide-scenarios-grid">
+                {/* Scenario 1 */}
+                <div className="guide-scenario-card">
+                  <div className="scenario-card-header">
+                    <span className="scenario-badge farmer">किसान कल्याण</span>
+                    <h4>पीएम किसान एवं फसल बीमा पात्रता</h4>
+                  </div>
+                  <p className="scenario-desc">
+                    छोटे व सीमांत किसानों के लिए ₹6,000 वार्षिक सहायता (PM-KISAN), किसान क्रेडिट कार्ड (KCC) और फसल बीमा की शर्तें।
+                  </p>
+                  <div className="scenario-prompt-box">
+                    <em>&quot;मुझे पीएम किसान योजना (PM-KISAN) और फसल बीमा के लिए कैसे आवेदन करना चाहिए? मेरी जमीन 1.5 एकड़ है।&quot;</em>
+                  </div>
+                  <button 
+                    className="scenario-action-btn"
+                    onClick={() => handleTryScenario("मुझे पीएम किसान योजना (PM-KISAN) और फसल बीमा के लिए कैसे आवेदन करना चाहिए? मेरी जमीन 1.5 एकड़ है।")}
+                  >
+                    <span>इस प्रश्न को आज़माएं (Try This Prompt)</span>
+                    <ExternalLink size={14} />
+                  </button>
+                </div>
+
+                {/* Scenario 2 */}
+                <div className="guide-scenario-card">
+                  <div className="scenario-card-header">
+                    <span className="scenario-badge vendor">लघु व्यापारी</span>
+                    <h4>पीएम स्वनिधि बिना गारंटी लोन</h4>
+                  </div>
+                  <p className="scenario-desc">
+                    रेहड़ी-पटरी व फुटपाथ विक्रेताओं के लिए ₹10,000 से ₹50,000 तक की पूंजी, 7% ब्याज सब्सिडी व डिजिटल कैशबैक लाभ।
+                  </p>
+                  <div className="scenario-prompt-box">
+                    <em>&quot;मैं रेहड़ी-पटरी (Street Vendor) वाला हूँ, क्या मुझे पीएम स्वनिधि योजना से बिना गारंटी का लोन मिल सकता है?&quot;</em>
+                  </div>
+                  <button 
+                    className="scenario-action-btn"
+                    onClick={() => handleTryScenario("मैं रेहड़ी-पटरी (Street Vendor) वाला हूँ, क्या मुझे पीएम स्वनिधि योजना से बिना गारंटी का लोन मिल सकता है?")}
+                  >
+                    <span>इस प्रश्न को आज़माएं (Try This Prompt)</span>
+                    <ExternalLink size={14} />
+                  </button>
+                </div>
+
+                {/* Scenario 3 */}
+                <div className="guide-scenario-card threat-card">
+                  <div className="scenario-card-header">
+                    <span className="scenario-badge fraud">साइबर सुरक्षा</span>
+                    <h4>बिजली बिल कटने का फर्जी संदेश</h4>
+                  </div>
+                  <p className="scenario-desc">
+                    नागरिकों को डराने वाले बिजली बिल एसएमएस की सुरक्षा जांच — अर्थसेतु इसे तत्काल फ्रॉड घोषित कर चेतावनी जारी करता है।
+                  </p>
+                  <div className="scenario-prompt-box threat-box">
+                    <em>&quot;Dear consumer your electricity power will disconnect tonight at 9:30 PM because bill not updated. Call electricity officer 9876543210 immediately.&quot;</em>
+                  </div>
+                  <button 
+                    className="scenario-action-btn threat-btn"
+                    onClick={() => handleTryScenario("Dear consumer your electricity power will disconnect tonight at 9:30 PM because bill not updated. Call electricity officer 9876543210 immediately.")}
+                  >
+                    <span>इस फर्जीवाड़े की जांच करें (Test Fraud Shield)</span>
+                    <ExternalLink size={14} />
+                  </button>
+                </div>
+
+                {/* Scenario 4 */}
+                <div className="guide-scenario-card threat-card">
+                  <div className="scenario-card-header">
+                    <span className="scenario-badge fraud">अवैध ऋण ऐप</span>
+                    <h4>7-दिन वाले लोन ऐप व 120% ब्याज चेतावनी</h4>
+                  </div>
+                  <p className="scenario-desc">
+                    अवैध चीनी व अनरजिस्टर्ड लोन ऐप्स जो फोन संपर्कों की एक्सेस मांगते हैं और अत्यधिक ब्याज वसूलते हैं — सिस्टम तुरंत चेतावनी देता है।
+                  </p>
+                  <div className="scenario-prompt-box threat-box">
+                    <em>&quot;क्या 7 दिन वाला इंस्टेंट लोन ऐप लेना चाहिए जो 120% सालाना ब्याज मांग रहा है और कॉन्टैक्ट लिस्ट मांग रहा है?&quot;</em>
+                  </div>
+                  <button 
+                    className="scenario-action-btn threat-btn"
+                    onClick={() => handleTryScenario("क्या 7 दिन वाला इंस्टेंट लोन ऐप लेना चाहिए जो 120% सालाना ब्याज मांग रहा है और कॉन्टैक्ट लिस्ट मांग रहा है?")}
+                  >
+                    <span>इस अवैध लोन की जांच करें (Test Loan Shield)</span>
+                    <ExternalLink size={14} />
+                  </button>
+                </div>
+
+                {/* Scenario 5 */}
+                <div className="guide-scenario-card">
+                  <div className="scenario-card-header">
+                    <span className="scenario-badge finance">अर्थ स्कोर</span>
+                    <h4>आपातकालीन बचत एवं पारिवारिक बजट</h4>
+                  </div>
+                  <p className="scenario-desc">
+                    आय व व्यय के आधार पर वित्तीय स्वास्थ्य स्कोर, 3 महीने के आपातकालीन फंड की योजना और व्यावहारिक सुझाव।
+                  </p>
+                  <div className="scenario-prompt-box">
+                    <em>&quot;मेरी मासिक आय ₹25,000 है और खर्च ₹18,000 है, मुझे आपातकालीन फंड और बचत कैसे बनानी चाहिए?&quot;</em>
+                  </div>
+                  <button 
+                    className="scenario-action-btn"
+                    onClick={() => handleTryScenario("मेरी मासिक आय ₹25,000 है और खर्च ₹18,000 है, मुझे आपातकालीन फंड और बचत कैसे बनानी चाहिए?")}
+                  >
+                    <span>इस प्रश्न को आज़माएं (Try This Prompt)</span>
+                    <ExternalLink size={14} />
+                  </button>
+                </div>
+
+                {/* Scenario 6 */}
+                <div className="guide-scenario-card">
+                  <div className="scenario-card-header">
+                    <span className="scenario-badge vendor">सुरक्षित पेंशन</span>
+                    <h4>अटल पेंशन योजना (APY) बुढ़ापा सहारा</h4>
+                  </div>
+                  <p className="scenario-desc">
+                    असंगठित क्षेत्र के कामगारों के लिए 60 वर्ष की आयु के बाद ₹1,000 से ₹5,000 की मासिक सरकारी गारंटीड पेंशन।
+                  </p>
+                  <div className="scenario-prompt-box">
+                    <em>&quot;मेरी उम्र 28 वर्ष है, मुझे अटल पेंशन योजना (APY) में हर महीने ₹5000 की पेंशन के लिए कितना जमा करना होगा?&quot;</em>
+                  </div>
+                  <button 
+                    className="scenario-action-btn"
+                    onClick={() => handleTryScenario("मेरी उम्र 28 वर्ष है, मुझे अटल पेंशन योजना (APY) में हर महीने ₹5000 की पेंशन के लिए कितना जमा करना होगा?")}
+                  >
+                    <span>इस प्रश्न को आज़माएं (Try This Prompt)</span>
+                    <ExternalLink size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Guardrails & Verification Explanation */}
+            <div className="guide-section">
+              <div className="section-title-bar">
+                <h3>
+                  <ShieldCheck size={18} color="var(--gov-navy)" />
+                  <span>सिडार पॉलिसी इंजन कैसे सुरक्षा सुनिश्चित करता है?</span>
+                </h3>
+              </div>
+
+              <div className="guide-guardrails-grid">
+                <div className="guardrail-card">
+                  <div className="guardrail-num">1</div>
+                  <div className="guardrail-body">
+                    <strong>कोई गैर-कानूनी या भ्रामक गारंटी नहीं</strong>
+                    <p>अर्थसेतु कभी भी &quot;100% निश्चित मुनाफा&quot;, &quot;पैसे दोगुना करने&quot;, या &quot;अवैध साहूकारों&quot; से कर्ज लेने की सलाह नहीं देता।</p>
+                  </div>
+                </div>
+
+                <div className="guardrail-card">
+                  <div className="guardrail-num">2</div>
+                  <div className="guardrail-body">
+                    <strong>विनियामक अस्वीकरण (Mandatory Disclaimers)</strong>
+                    <p>किसी भी वित्तीय या ऋण योजना पर चर्चा के दौरान आरबीआई (RBI), सेबी (SEBI) या आईआरडीएआई (IRDAI) अस्वीकरण अनिवार्य रूप से संलग्न होता है।</p>
+                  </div>
+                </div>
+
+                <div className="guardrail-card">
+                  <div className="guardrail-num">3</div>
+                  <div className="guardrail-body">
+                    <strong>गोपनीयता और डेटा सुरक्षा</strong>
+                    <p>हम कभी भी आपका पूरा आधार नंबर, बैंक पासवर्ड, एटीएम पिन या ओटीपी नहीं मांगते और न ही स्टोर करते हैं।</p>
+                  </div>
+                </div>
+
+                <div className="guardrail-card">
+                  <div className="guardrail-num">4</div>
+                  <div className="guardrail-body">
+                    <strong>प्रमाणित सरकारी स्रोत</strong>
+                    <p>सभी योजनाएं (PM-KISAN, PM SVANidhi, APY, PMFBY) सीधे भारत सरकार के आधिकारिक पोर्टल्स से सत्यापित हैं।</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Civic Helplines Directory */}
+            <div className="guide-section">
+              <div className="section-title-bar">
+                <h3>
+                  <PhoneCall size={18} color="var(--gov-navy)" />
+                  <span>आधिकारिक नागरिक हेल्पलाइन व पोर्टल (Official Emergency Helplines)</span>
+                </h3>
+              </div>
+
+              <div className="helpline-directory-grid">
+                <div className="helpline-entry-card emergency">
+                  <div className="helpline-code">1930</div>
+                  <div className="helpline-info">
+                    <strong>राष्ट्रीय साइबर अपराध हेल्पलाइन (National Cybercrime)</strong>
+                    <span>वित्तीय धोखाधड़ी, यूपीआई फ्रॉड या संदिग्ध लेनदेन की 24x7 तत्काल शिकायत</span>
+                    <a href="https://cybercrime.gov.in" target="_blank" rel="noopener noreferrer">cybercrime.gov.in ↗</a>
+                  </div>
+                </div>
+
+                <div className="helpline-entry-card">
+                  <div className="helpline-code">1915</div>
+                  <div className="helpline-info">
+                    <strong>राष्ट्रीय उपभोक्ता हेल्पलाइन (Consumer Helpline)</strong>
+                    <span>बैंक अनुचित शुल्क, बीमा क्लेम में देरी, या ई-कॉमर्स शिकायतों हेतु</span>
+                    <a href="https://consumerhelpline.gov.in" target="_blank" rel="noopener noreferrer">consumerhelpline.gov.in ↗</a>
+                  </div>
+                </div>
+
+                <div className="helpline-entry-card">
+                  <div className="helpline-code">1800-180-1551</div>
+                  <div className="helpline-info">
+                    <strong>किसान कॉल सेंटर (Kisan Call Centre)</strong>
+                    <span>फसल बीमा, केसीसी ब्याज दर एवं कृषि संबंधी विशेषज्ञ सलाह (सुबह 6 से रात 10 बजे)</span>
+                    <a href="https://pmkisan.gov.in" target="_blank" rel="noopener noreferrer">pmkisan.gov.in ↗</a>
+                  </div>
+                </div>
+
+                <div className="helpline-entry-card">
+                  <div className="helpline-code">1800-11-1979</div>
+                  <div className="helpline-info">
+                    <strong>पीएम स्वनिधि हेल्पलाइन (PM SVANidhi Support)</strong>
+                    <span>रेहड़ी-पटरी विक्रेता ऋण आवेदन, ब्याज सब्सिडी एवं वेंडर आईडी सहायता</span>
+                    <a href="https://pmsvanidhi.mohua.gov.in" target="_blank" rel="noopener noreferrer">pmsvanidhi.mohua.gov.in ↗</a>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </main>
