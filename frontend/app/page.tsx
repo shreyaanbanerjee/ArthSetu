@@ -68,8 +68,19 @@ interface UserProfile {
   not_epf_member: boolean;
 }
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-const API_FALLBACKS = Array.from(new Set([API, "http://127.0.0.1:8000", "http://localhost:8000"]));
+function getApiFallbacks(): string[] {
+  const list: string[] = [];
+  if (typeof window !== "undefined" && window.location?.origin) {
+    list.push(window.location.origin);
+  }
+  const envApi = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (envApi && !envApi.includes("localhost")) {
+    list.push(envApi);
+  }
+  list.push("http://localhost:8000");
+  list.push("http://127.0.0.1:8000");
+  return Array.from(new Set(list.filter(Boolean)));
+}
 
 const LANGUAGES = [
   { code: "hi", label: "हिंदी" },
@@ -289,7 +300,8 @@ export default function ArthSetuApp() {
         profile_updates: profile,
       };
 
-      for (const baseUrl of API_FALLBACKS) {
+      const fallbacks = getApiFallbacks();
+      for (const baseUrl of fallbacks) {
         try {
           res = await fetch(`${baseUrl}/api/v1/chat`, {
             method: "POST",

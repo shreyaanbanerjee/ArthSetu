@@ -3,13 +3,19 @@
 import { useEffect, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+function getApiUrl(): string {
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return window.location.origin;
+  }
+  return process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+}
 
 export default function ScorePage() {
   const [session, setSession] = useState<any>(null);
 
   useEffect(() => {
-    fetch(`${API}/api/v1/session/demo-user`, { headers: { "ngrok-skip-browser-warning": "true" } }).then((r) => r.json()).then(setSession).catch(() => setSession(null));
+    const apiBase = getApiUrl();
+    fetch(`${apiBase}/api/v1/session/demo-user`, { headers: { "ngrok-skip-browser-warning": "true" } }).then((r) => r.json()).then(setSession).catch(() => setSession(null));
   }, []);
 
   const score = session?.arth_score_update || {

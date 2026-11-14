@@ -518,7 +518,7 @@ _starlette_app = Starlette(debug=True, routes=routes, middleware=middleware)
 # Wrap with security middleware (applied in reverse order — outermost first)
 app = RateLimitMiddleware(
     SecurityHeadersMiddleware(_starlette_app),
-    max_requests=30,
+    max_requests=120,
     window_seconds=60,
 )
 

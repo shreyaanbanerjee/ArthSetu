@@ -3,7 +3,12 @@
 import { Search } from "lucide-react";
 import { useState } from "react";
 
-const API = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+function getApiUrl(): string {
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return window.location.origin;
+  }
+  return process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+}
 
 export default function SchemesPage() {
   const [occupation, setOccupation] = useState("farmer");
@@ -11,7 +16,8 @@ export default function SchemesPage() {
   const [schemes, setSchemes] = useState<any[]>([]);
 
   async function match() {
-    const res = await fetch(`${API}/api/v1/chat`, {
+    const apiBase = getApiUrl();
+    const res = await fetch(`${apiBase}/api/v1/chat`, {
       method: "POST",
       headers: { "ngrok-skip-browser-warning": "true","Content-Type": "application/json"},
       body: JSON.stringify({
