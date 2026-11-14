@@ -279,6 +279,63 @@ python run_tests.py -v
 
 ---
 
+## Live Cloud Deployment (Public Access)
+
+ArthSetu is deployed and running live on an AWS EC2 instance in `ap-south-1` (Mumbai) with full end-to-end HTTPS access:
+
+- **Public HTTPS Link (Voice & Microphone Enabled):** [https://insert-weed-asset-bargains.trycloudflare.com](https://insert-weed-asset-bargains.trycloudflare.com)
+- **Direct Cloud IP Link:** [http://13.206.235.248](http://13.206.235.248)
+- **AWS Region:** `ap-south-1` (Asia Pacific Mumbai)
+- **Instance Type:** `t3.medium` (2 vCPU, 4GB RAM)
+- **Security Group:** `arthsetu-web-sg` (Ports 80 HTTP, 443 HTTPS, 22 SSH)
+
+### Deployment Architecture on EC2
+
+```
+                       User / External Browser
+                                  │
+                                  ▼
+      ┌────────────────────────────────────────────────────────┐
+      │  Cloudflare Edge Tunnel (Valid Public HTTPS / TLS)      │
+      │  https://insert-weed-asset-bargains.trycloudflare.com   │
+      └───────────────────────────┬────────────────────────────┘
+                                  │ proxy: 127.0.0.1:80
+                                  ▼
+      ┌────────────────────────────────────────────────────────┐
+      │  Nginx Reverse Proxy (:80)                             │
+      │   ├── /api/  ──────▶ FastAPI / Uvicorn (:8000)         │
+      │   ├── /health ─────▶ FastAPI / Uvicorn (:8000)         │
+      │   └── /      ──────▶ Next.js SSR / PWA (:3000)         │
+      └────────────────────────────────────────────────────────┘
+```
+
+> **Why HTTPS is Critical for Voice:** Modern mobile and desktop browsers (Chrome, Safari, Edge) block the Web Speech API and microphone input on insecure HTTP origins. The Cloudflare secure tunnel provides an end-to-end encrypted HTTPS gateway so voice dictation, speech recognition, and audio synthesis work smoothly out of the box on mobile and desktop.
+
+### Managed Systemd Services
+
+On the host, all components are monitored and auto-restarted via `systemd`:
+- `arthsetu-backend.service`: FastAPI ASGI application running on `127.0.0.1:8000`
+- `arthsetu-frontend.service`: Next.js production server running on `127.0.0.1:3000`
+- `arthsetu-tunnel.service`: Cloudflare tunnel daemon bridging port 80 to the public web
+- `nginx.service`: High-performance HTTP reverse proxy routing frontend and backend APIs
+
+### Live Health & API Verification
+
+```bash
+# Check service health
+curl -s https://insert-weed-asset-bargains.trycloudflare.com/health
+
+# Check live Cedar Policy firewall and agent status
+curl -s https://insert-weed-asset-bargains.trycloudflare.com/api/v1/system/status
+
+# Test live fraud screening
+curl -s -X POST https://insert-weed-asset-bargains.trycloudflare.com/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"Electricity bill overdue! Power cut tonight. Call 9876543210 immediately.", "user_id":"test_user"}'
+```
+
+---
+
 ## AWS Deployment
 
 ### Serverless Application Model (SAM)
